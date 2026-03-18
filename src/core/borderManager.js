@@ -21,6 +21,7 @@ export class BorderManager {
         this._windowSignals = new SignalManager();
         this._border = null;
         this._focusWindow = null;
+        this._grabActive = false;
     }
 
     // =========================================================================
@@ -42,6 +43,12 @@ export class BorderManager {
         // Track focus changes
         this._signals.connect(global.display, 'notify::focus-window',
             () => this._onFocusChanged());
+
+        // Track grab operations — snap instantly during drag, animate otherwise
+        this._signals.connect(global.display, 'grab-op-begin',
+            () => { this._grabActive = true; });
+        this._signals.connect(global.display, 'grab-op-end',
+            () => { this._grabActive = false; });
 
         // Re-stack border when window z-order changes
         this._signals.connect(global.display, 'restacked',
@@ -128,9 +135,15 @@ export class BorderManager {
     }
 
     /**
-     * Animate border to track window position/size changes.
+     * Track window position/size changes — snap instantly during grab
+     * (user drag), animate otherwise (tiling layout change).
      */
     _updateGeometryAnimated() {
+        if (this._grabActive) {
+            this._updateGeometry();
+            return;
+        }
+
         if (!this._focusWindow || !this._border)
             return;
 
