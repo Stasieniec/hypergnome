@@ -177,9 +177,9 @@ Key `Meta.GrabOp` values: `NONE`, `MOVING`, `RESIZING_N/S/E/W/NE/NW/SE/SW`
 ## Multi-Monitor
 
 ```javascript
-// Monitor changes
-const monitorManager = Meta.MonitorManager.get();
-monitorManager.connect('monitors-changed', () => { /* rebuild layouts */ });
+// Monitor changes (use Main.layoutManager -- Meta.MonitorManager.get() is NOT available on GNOME 46)
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+Main.layoutManager.connect('monitors-changed', () => { /* rebuild layouts */ });
 
 // Get monitor neighbor
 const leftMon = global.display.get_monitor_neighbor_index(i, Meta.DisplayDirection.LEFT);

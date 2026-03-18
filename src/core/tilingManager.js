@@ -8,6 +8,7 @@
 
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Tree, NodeType, SplitDirection} from './tree.js';
 import {computeLayout, computeNodeRect, findNeighborInDirection} from './layout.js';
@@ -58,9 +59,8 @@ export class TilingManager {
         this._connectSignal(wsManager, 'active-workspace-changed',
             () => this._onWorkspaceChanged());
 
-        // Monitor changes
-        this._monitorManager = Meta.MonitorManager.get();
-        this._connectSignal(this._monitorManager, 'monitors-changed',
+        // Monitor changes (Main.layoutManager is the stable way across GNOME 46-49)
+        this._connectSignal(Main.layoutManager, 'monitors-changed',
             () => this._onMonitorsChanged());
 
         // Work area changes (e.g. panel resize)
@@ -123,7 +123,6 @@ export class TilingManager {
         // Clear remaining state
         this._floatingWindows.clear();
         this._grabbedWindow = null;
-        this._monitorManager = null;
         this._settings = null;
     }
 

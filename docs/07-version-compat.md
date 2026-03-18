@@ -13,6 +13,7 @@ const SHELL_VERSION = parseInt(Shell.version);
 - Signal names: `"actor-added"/"actor-removed"` -> `"child-added"/"child-removed"`
 - `St.Bin` no longer auto-expands per `Clutter.ActorAlign.FILL` -- needs explicit `x_expand`/`y_expand`
 - `St.Button` label defaults to plain text (not Pango markup)
+- **`Meta.MonitorManager.get()` NOT available** -- Use `Main.layoutManager` with `'monitors-changed'` signal instead
 
 ### GNOME 47
 - `Clutter.Color` removed -- Use `Cogl.Color()`
