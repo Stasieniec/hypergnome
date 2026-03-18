@@ -62,5 +62,80 @@
       <description>List of WM_CLASS values that should always float</description>
     </key>
 
+    <!-- Keybindings: Focus -->
+    <key name="tile-focus-left" type="as">
+      <default><![CDATA[['<Super>h']]]></default>
+      <summary>Focus window to the left</summary>
+      <description>Move keyboard focus to the nearest window on the left</description>
+    </key>
+
+    <key name="tile-focus-down" type="as">
+      <default><![CDATA[['<Super>j']]]></default>
+      <summary>Focus window below</summary>
+      <description>Move keyboard focus to the nearest window below</description>
+    </key>
+
+    <key name="tile-focus-up" type="as">
+      <default><![CDATA[['<Super>k']]]></default>
+      <summary>Focus window above</summary>
+      <description>Move keyboard focus to the nearest window above</description>
+    </key>
+
+    <key name="tile-focus-right" type="as">
+      <default><![CDATA[['<Super>l']]]></default>
+      <summary>Focus window to the right</summary>
+      <description>Move keyboard focus to the nearest window on the right</description>
+    </key>
+
+    <!-- Keybindings: Move window -->
+    <key name="tile-move-left" type="as">
+      <default><![CDATA[['<Super><Shift>h']]]></default>
+      <summary>Move window left</summary>
+      <description>Swap the focused window with its left neighbor</description>
+    </key>
+
+    <key name="tile-move-down" type="as">
+      <default><![CDATA[['<Super><Shift>j']]]></default>
+      <summary>Move window down</summary>
+      <description>Swap the focused window with its neighbor below</description>
+    </key>
+
+    <key name="tile-move-up" type="as">
+      <default><![CDATA[['<Super><Shift>k']]]></default>
+      <summary>Move window up</summary>
+      <description>Swap the focused window with its neighbor above</description>
+    </key>
+
+    <key name="tile-move-right" type="as">
+      <default><![CDATA[['<Super><Shift>l']]]></default>
+      <summary>Move window right</summary>
+      <description>Swap the focused window with its right neighbor</description>
+    </key>
+
+    <!-- Keybindings: Actions -->
+    <key name="tile-toggle-float" type="as">
+      <default><![CDATA[['<Super>v']]]></default>
+      <summary>Toggle floating</summary>
+      <description>Toggle the focused window between tiled and floating</description>
+    </key>
+
+    <key name="tile-close-window" type="as">
+      <default><![CDATA[['<Super>q']]]></default>
+      <summary>Close window</summary>
+      <description>Close the focused window</description>
+    </key>
+
+    <key name="tile-toggle-split" type="as">
+      <default><![CDATA[['<Super>p']]]></default>
+      <summary>Toggle split direction</summary>
+      <description>Toggle the split direction of the parent container</description>
+    </key>
+
+    <key name="tile-equalize" type="as">
+      <default><![CDATA[['<Super>e']]]></default>
+      <summary>Equalize split ratios</summary>
+      <description>Reset all split ratios on the current workspace to 50/50</description>
+    </key>
+
   </schema>
 </schemalist>
