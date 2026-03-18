@@ -38,6 +38,12 @@ export class KeybindingManager {
         this._addBinding('tile-toggle-split', () => this._tilingManager.toggleSplit());
         this._addBinding('tile-equalize', () => this._tilingManager.equalize());
 
+        // -- Custom keybindings (resize window) --
+        this._addBinding('tile-resize-left', () => this._tilingManager.resizeDirection('left'));
+        this._addBinding('tile-resize-down', () => this._tilingManager.resizeDirection('down'));
+        this._addBinding('tile-resize-up', () => this._tilingManager.resizeDirection('up'));
+        this._addBinding('tile-resize-right', () => this._tilingManager.resizeDirection('right'));
+
         // -- Override conflicting GNOME keybindings --
 
         // Super+H is GNOME minimize — conflicts with our focus-left

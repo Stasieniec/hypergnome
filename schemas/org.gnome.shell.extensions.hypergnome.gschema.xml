@@ -36,6 +36,12 @@
       <description>Default ratio when splitting a window (0.1 - 0.9)</description>
     </key>
 
+    <key name="resize-step" type="d">
+      <default>0.05</default>
+      <summary>Resize step</summary>
+      <description>Amount to change split ratio per resize keypress (0.01 - 0.25)</description>
+    </key>
+
     <!-- Active border -->
     <key name="active-border-size" type="i">
       <default>3</default>
@@ -135,6 +141,31 @@
       <default><![CDATA[['<Super>e']]]></default>
       <summary>Equalize split ratios</summary>
       <description>Reset all split ratios on the current workspace to 50/50</description>
+    </key>
+
+    <!-- Keybindings: Resize -->
+    <key name="tile-resize-left" type="as">
+      <default><![CDATA[['<Super><Control>Left']]]></default>
+      <summary>Resize window left</summary>
+      <description>Grow the focused window to the left</description>
+    </key>
+
+    <key name="tile-resize-down" type="as">
+      <default><![CDATA[['<Super><Control>Down']]]></default>
+      <summary>Resize window down</summary>
+      <description>Grow the focused window downward</description>
+    </key>
+
+    <key name="tile-resize-up" type="as">
+      <default><![CDATA[['<Super><Control>Up']]]></default>
+      <summary>Resize window up</summary>
+      <description>Grow the focused window upward</description>
+    </key>
+
+    <key name="tile-resize-right" type="as">
+      <default><![CDATA[['<Super><Control>Right']]]></default>
+      <summary>Resize window right</summary>
+      <description>Grow the focused window to the right</description>
     </key>
 
   </schema>

@@ -218,6 +218,49 @@ export class Tree {
     }
 
     /**
+     * Find the nearest ancestor fork that can be resized in a direction.
+     *
+     * Walks up from the window's leaf looking for a fork whose split
+     * direction matches the resize axis AND where the window is on the
+     * correct side (so the split boundary can move in the requested direction).
+     *
+     * @param {Meta.Window} metaWindow
+     * @param {string} direction - 'left'|'right'|'up'|'down'
+     * @returns {{ fork: Node, delta: number } | null}
+     *   fork: the fork whose splitRatio should be adjusted
+     *   delta: +1 means increase splitRatio, -1 means decrease
+     */
+    findResizableFork(metaWindow, direction) {
+        const leaf = this._windowToLeaf.get(metaWindow);
+        if (!leaf)
+            return null;
+
+        const isHorizontal = direction === 'left' || direction === 'right';
+        const wantDirection = isHorizontal
+            ? SplitDirection.HORIZONTAL
+            : SplitDirection.VERTICAL;
+
+        let current = leaf;
+        while (current.parent !== null) {
+            const fork = current.parent;
+            const isChildA = fork.childA === current;
+
+            if (fork.splitDirection === wantDirection) {
+                // "right"/"down" on childA → increase ratio (childA grows)
+                if ((direction === 'right' || direction === 'down') && isChildA)
+                    return {fork, delta: +1};
+                // "left"/"up" on childB → decrease ratio (childB grows)
+                if ((direction === 'left' || direction === 'up') && !isChildA)
+                    return {fork, delta: -1};
+            }
+
+            current = fork;
+        }
+
+        return null;
+    }
+
+    /**
      * Find the rightmost/deepest leaf (for default insertion point).
      * @param {Node} node
      * @returns {Node|null}

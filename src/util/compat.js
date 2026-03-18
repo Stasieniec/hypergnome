@@ -50,3 +50,16 @@ export function isConstrained(win) {
     else
         return win.get_maximized() !== Meta.MaximizeFlags.NONE;
 }
+
+/**
+ * Check if a grab operation is a window resize (not a move).
+ * grab-op-begin/end only fires for move and resize operations,
+ * so anything that isn't NONE or MOVING is a resize.
+ * @param {number} grabOp - Meta.GrabOp value
+ * @returns {boolean}
+ */
+export function isResizeGrab(grabOp) {
+    if (!grabOp || grabOp === Meta.GrabOp.MOVING)
+        return false;
+    return true;
+}

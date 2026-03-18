@@ -13,7 +13,7 @@ import {Tree, NodeType, SplitDirection} from './tree.js';
 import {computeLayout, computeNodeRect, findNeighborInDirection} from './layout.js';
 import {moveWindowToMonitor, focusOnAdjacentMonitor} from './monitorUtils.js';
 import {shouldTile} from '../util/windowFilters.js';
-import {unmaximizeWindow, isMaximized, isConstrained} from '../util/compat.js';
+import {unmaximizeWindow, isMaximized, isConstrained, isResizeGrab} from '../util/compat.js';
 import {SignalManager} from '../util/signalManager.js';
 import {animateWindow, snapWindow} from '../util/animator.js';
 
@@ -284,6 +284,37 @@ export class TilingManager {
         }
     }
 
+    /**
+     * Resize the focused window in a direction by adjusting the
+     * nearest compatible ancestor fork's splitRatio.
+     * @param {string} direction - 'left'|'right'|'up'|'down'
+     */
+    resizeDirection(direction) {
+        if (!this._isTilingActive())
+            return;
+
+        const focused = global.display.get_focus_window();
+        if (!focused)
+            return;
+
+        const tree = this._findTreeContaining(focused);
+        if (!tree)
+            return;
+
+        const result = tree.findResizableFork(focused, direction);
+        if (!result)
+            return;
+
+        const step = this._settings.get_double('resize-step');
+        const {fork, delta} = result;
+
+        fork.splitRatio = Math.min(0.9, Math.max(0.1, fork.splitRatio + delta * step));
+
+        const ws = focused.get_workspace();
+        if (ws)
+            this._applyLayout(ws.index(), focused.get_monitor());
+    }
+
     // =========================================================================
     // Signal handlers
     // =========================================================================
@@ -335,7 +366,7 @@ export class TilingManager {
         this._grabbedWindow = metaWindow;
     }
 
-    _onGrabEnd(metaWindow, _grabOp) {
+    _onGrabEnd(metaWindow, grabOp) {
         this._grabbedWindow = null;
 
         if (!metaWindow)
@@ -343,9 +374,22 @@ export class TilingManager {
         if (this._floatingWindows.has(metaWindow))
             return;
 
-        // After user drag/resize, snap back to tiled position
-        if (this._findTreeContaining(metaWindow))
+        const tree = this._findTreeContaining(metaWindow);
+        if (!tree)
+            return;
+
+        if (isResizeGrab(grabOp)) {
+            // Mouse resize: compute new splitRatio from post-drag geometry
+            try {
+                this._handleResizeGrab(metaWindow, tree);
+            } catch (e) {
+                logError(e, 'HyperGnome: resize grab');
+                this._queueRelayout();
+            }
+        } else {
+            // Move grab: snap back to tiled position
             this._queueRelayout();
+        }
     }
 
     _onWorkspaceChanged() {
@@ -673,6 +717,53 @@ export class TilingManager {
             return GLib.SOURCE_REMOVE;
         });
         this._deferredLayoutSources.add(sourceId);
+    }
+
+    /**
+     * After a mouse resize grab, compute new splitRatio from the
+     * window's post-drag geometry and update the tree.
+     */
+    _handleResizeGrab(metaWindow, tree) {
+        const leaf = tree.findLeaf(metaWindow);
+        if (!leaf || !leaf.parent)
+            return;
+
+        const fork = leaf.parent;
+        const isChildA = fork.childA === leaf;
+
+        const ws = metaWindow.get_workspace();
+        if (!ws)
+            return;
+
+        const monIndex = metaWindow.get_monitor();
+        const workArea = ws.get_work_area_for_monitor(monIndex);
+        const forkRect = computeNodeRect(fork, workArea);
+        const newFrame = metaWindow.get_frame_rect();
+        const innerGap = this._settings.get_int('inner-gap');
+        const halfGap = Math.round(innerGap / 2);
+
+        let newRatio;
+
+        if (fork.splitDirection === SplitDirection.HORIZONTAL) {
+            if (isChildA) {
+                const splitX = newFrame.x + newFrame.width + halfGap;
+                newRatio = (splitX - forkRect.x) / forkRect.width;
+            } else {
+                const splitX = newFrame.x - halfGap;
+                newRatio = (splitX - forkRect.x) / forkRect.width;
+            }
+        } else {
+            if (isChildA) {
+                const splitY = newFrame.y + newFrame.height + halfGap;
+                newRatio = (splitY - forkRect.y) / forkRect.height;
+            } else {
+                const splitY = newFrame.y - halfGap;
+                newRatio = (splitY - forkRect.y) / forkRect.height;
+            }
+        }
+
+        fork.splitRatio = Math.min(0.9, Math.max(0.1, newRatio));
+        this._applyLayout(ws.index(), monIndex);
     }
 
     /**
