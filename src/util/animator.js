@@ -1,24 +1,27 @@
 /**
  * Animation utilities for smooth tiling transitions.
  *
- * Uses actor-transform animation: move_resize_frame() sets the logical
- * position immediately, then Clutter actor transforms (translation, scale)
- * are set to make the window visually appear at its OLD position, then
- * animated back to identity so the window glides to its new spot.
+ * Uses the Clone + Opacity Zero technique: a Clutter.Clone is created at
+ * the window's old position, the real actor is hidden (opacity 0), the
+ * logical window is moved instantly, and the clone animates from old to
+ * new position.  When the animation completes, the clone is destroyed and
+ * the real actor is revealed.
+ *
+ * This avoids conflicts with Mutter's sync_actor_geometry (which overrides
+ * actor x/y on every frame) and GNOME Shell's built-in size-change handler
+ * (which overwrites translation_x/y and scale_x/y for maximize/unmaximize).
  *
  * Only uses public Clutter APIs — no private GNOME Shell methods.
  */
 
 import Clutter from 'gi://Clutter';
+import Graphene from 'gi://Graphene';
 
 const ANIM_DURATION_MS = 200;
 const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
 
 /**
- * Animate a window from its current visual position to a target rect.
- *
- * IMPORTANT: Must be called BEFORE move_resize_frame — it captures the
- * old rect, calls move_resize_frame internally, then sets up the animation.
+ * Animate a window from its current position/size to a target rect.
  *
  * @param {Meta.Window} metaWindow
  * @param {{x: number, y: number, width: number, height: number}} targetRect
@@ -29,58 +32,87 @@ export function animateWindow(metaWindow, targetRect) {
     if (!actor)
         return;
 
-    // Capture the old visual rect BEFORE moving
     const oldRect = metaWindow.get_frame_rect();
-    const oldX = oldRect.x;
-    const oldY = oldRect.y;
-    const oldW = oldRect.width;
-    const oldH = oldRect.height;
-
     const newX = targetRect.x;
     const newY = targetRect.y;
     const newW = targetRect.width;
     const newH = targetRect.height;
 
-    // Skip animation if nothing changed
-    if (oldX === newX && oldY === newY && oldW === newW && oldH === newH) {
+    // Skip if nothing changed
+    if (oldRect.x === newX && oldRect.y === newY &&
+        oldRect.width === newW && oldRect.height === newH) {
         metaWindow.move_resize_frame(false, newX, newY, newW, newH);
         return;
     }
 
-    // Cancel any in-flight animation
+    // Skip animation for trivially small changes (< 2px)
+    const dx = Math.abs(oldRect.x - newX);
+    const dy = Math.abs(oldRect.y - newY);
+    const dw = Math.abs(oldRect.width - newW);
+    const dh = Math.abs(oldRect.height - newH);
+    if (dx < 2 && dy < 2 && dw < 2 && dh < 2) {
+        metaWindow.move_resize_frame(false, newX, newY, newW, newH);
+        return;
+    }
+
+    // CSD shadow offset: buffer rect (actor bounds) includes shadows,
+    // frame rect does not.  We need the offset to position the clone correctly.
+    const xShadow = oldRect.x - actor.get_x();
+    const yShadow = oldRect.y - actor.get_y();
+
+    // Cancel any in-flight animation on the real actor
     actor.remove_all_transitions();
 
-    // Set the new logical position immediately
+    // 1. Create a clone at the OLD visual position
+    let clone;
+    try {
+        clone = new Clutter.Clone({
+            source: actor,
+            reactive: false,
+            x: oldRect.x - xShadow,
+            y: oldRect.y - yShadow,
+            width: oldRect.width + 2 * xShadow,
+            height: oldRect.height + 2 * yShadow,
+            pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
+        });
+        global.window_group.add_child(clone);
+    } catch (_e) {
+        // Clone creation failed — fall back to instant move
+        metaWindow.move_resize_frame(false, newX, newY, newW, newH);
+        return;
+    }
+
+    // 2. Hide the real actor while the clone animates
+    actor.opacity = 0;
+
+    // 3. Move the real window to its target immediately (invisible)
     metaWindow.move_resize_frame(false, newX, newY, newW, newH);
 
-    // Compute inverse transforms so actor visually stays at old position
-    const scaleX = newW > 0 ? oldW / newW : 1;
-    const scaleY = newH > 0 ? oldH / newH : 1;
-    const transX = oldX - newX;
-    const transY = oldY - newY;
-
-    // Skip animation for trivially small moves (< 2px)
-    if (Math.abs(transX) < 2 && Math.abs(transY) < 2 &&
-        Math.abs(scaleX - 1) < 0.01 && Math.abs(scaleY - 1) < 0.01)
-        return;
-
-    // Set pivot to top-left so scale grows from the window's origin
-    actor.set_pivot_point(0, 0);
-
-    // Apply inverse transforms (visually snaps back to old position)
-    actor.translation_x = transX;
-    actor.translation_y = transY;
-    actor.scale_x = scaleX;
-    actor.scale_y = scaleY;
-
-    // Animate back to identity (window glides to new position)
-    actor.ease({
-        translation_x: 0,
-        translation_y: 0,
-        scale_x: 1,
-        scale_y: 1,
+    // 4. Animate the clone from old position to new position
+    clone.ease({
+        x: newX - xShadow,
+        y: newY - yShadow,
+        width: newW + 2 * xShadow,
+        height: newH + 2 * yShadow,
         duration: ANIM_DURATION_MS,
         mode: ANIM_MODE,
+        onStopped: () => {
+            // 5. Restore the real actor and destroy the clone
+            try {
+                actor.opacity = 255;
+                actor.scale_x = 1;
+                actor.scale_y = 1;
+                actor.translation_x = 0;
+                actor.translation_y = 0;
+            } catch (_e) {
+                // Actor may have been destroyed during animation
+            }
+            try {
+                clone.destroy();
+            } catch (_e) {
+                // Clone may already be destroyed
+            }
+        },
     });
 }
 
@@ -115,6 +147,8 @@ export function snapWindow(metaWindow, targetRect) {
     const actor = metaWindow.get_compositor_private();
     if (actor) {
         actor.remove_all_transitions();
+        // Ensure real actor is visible (in case animation was interrupted)
+        actor.opacity = 255;
         actor.translation_x = 0;
         actor.translation_y = 0;
         actor.scale_x = 1;
