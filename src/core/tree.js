@@ -218,11 +218,13 @@ export class Tree {
     }
 
     /**
-     * Find the nearest ancestor fork that can be resized in a direction.
+     * Find the nearest ancestor fork whose split boundary can move in
+     * the given direction.
      *
-     * Walks up from the window's leaf looking for a fork whose split
-     * direction matches the resize axis AND where the window is on the
-     * correct side (so the split boundary can move in the requested direction).
+     * "resize-right" means "move the nearest horizontal boundary rightward."
+     * If the window is in childA, increasing the ratio grows childA (window
+     * grows). If in childB, increasing the ratio shrinks childB (window
+     * shrinks). Either way, the boundary moves right.
      *
      * @param {Meta.Window} metaWindow
      * @param {string} direction - 'left'|'right'|'up'|'down'
@@ -243,15 +245,13 @@ export class Tree {
         let current = leaf;
         while (current.parent !== null) {
             const fork = current.parent;
-            const isChildA = fork.childA === current;
 
             if (fork.splitDirection === wantDirection) {
-                // "right"/"down" on childA → increase ratio (childA grows)
-                if ((direction === 'right' || direction === 'down') && isChildA)
-                    return {fork, delta: +1};
-                // "left"/"up" on childB → decrease ratio (childB grows)
-                if ((direction === 'left' || direction === 'up') && !isChildA)
-                    return {fork, delta: -1};
+                // "right"/"down" → increase ratio (boundary moves right/down)
+                // "left"/"up"   → decrease ratio (boundary moves left/up)
+                const delta = (direction === 'right' || direction === 'down')
+                    ? +1 : -1;
+                return {fork, delta};
             }
 
             current = fork;

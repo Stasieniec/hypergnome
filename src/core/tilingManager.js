@@ -722,48 +722,120 @@ export class TilingManager {
     /**
      * After a mouse resize grab, compute new splitRatio from the
      * window's post-drag geometry and update the tree.
+     *
+     * Compares post-drag frame rect to the expected tiled rect to
+     * determine which edges moved, then walks up the tree to find
+     * the fork that controls each moved edge.
      */
     _handleResizeGrab(metaWindow, tree) {
         const leaf = tree.findLeaf(metaWindow);
         if (!leaf || !leaf.parent)
             return;
 
-        const fork = leaf.parent;
-        const isChildA = fork.childA === leaf;
-
         const ws = metaWindow.get_workspace();
         if (!ws)
             return;
 
         const monIndex = metaWindow.get_monitor();
+        const wsIndex = ws.index();
         const workArea = ws.get_work_area_for_monitor(monIndex);
-        const forkRect = computeNodeRect(fork, workArea);
-        const newFrame = metaWindow.get_frame_rect();
         const innerGap = this._settings.get_int('inner-gap');
-        const halfGap = Math.round(innerGap / 2);
+        const outerGap = this._settings.get_int('outer-gap');
 
-        let newRatio;
+        // Get the expected tiled rect for this window
+        const rects = computeLayout(tree.root, workArea, innerGap, outerGap);
+        const expectedRect = rects.get(metaWindow);
+        if (!expectedRect)
+            return;
 
-        if (fork.splitDirection === SplitDirection.HORIZONTAL) {
-            if (isChildA) {
-                const splitX = newFrame.x + newFrame.width + halfGap;
-                newRatio = (splitX - forkRect.x) / forkRect.width;
-            } else {
-                const splitX = newFrame.x - halfGap;
-                newRatio = (splitX - forkRect.x) / forkRect.width;
-            }
-        } else {
-            if (isChildA) {
-                const splitY = newFrame.y + newFrame.height + halfGap;
-                newRatio = (splitY - forkRect.y) / forkRect.height;
-            } else {
-                const splitY = newFrame.y - halfGap;
-                newRatio = (splitY - forkRect.y) / forkRect.height;
-            }
+        const newFrame = metaWindow.get_frame_rect();
+        const THRESHOLD = 5;
+
+        // Determine which edges moved significantly
+        const dLeft   = newFrame.x - expectedRect.x;
+        const dRight  = (newFrame.x + newFrame.width) - (expectedRect.x + expectedRect.width);
+        const dTop    = newFrame.y - expectedRect.y;
+        const dBottom = (newFrame.y + newFrame.height) - (expectedRect.y + expectedRect.height);
+
+        let changed = false;
+
+        // Horizontal edge change: find the nearest HORIZONTAL fork
+        if (Math.abs(dLeft) > THRESHOLD || Math.abs(dRight) > THRESHOLD) {
+            // Pick the edge that moved more
+            const useLeft = Math.abs(dLeft) > Math.abs(dRight);
+            this._applyEdgeResize(leaf, SplitDirection.HORIZONTAL, useLeft, workArea, innerGap);
+            changed = true;
         }
 
-        fork.splitRatio = Math.min(0.9, Math.max(0.1, newRatio));
-        this._applyLayout(ws.index(), monIndex);
+        // Vertical edge change: find the nearest VERTICAL fork
+        if (Math.abs(dTop) > THRESHOLD || Math.abs(dBottom) > THRESHOLD) {
+            const useTop = Math.abs(dTop) > Math.abs(dBottom);
+            this._applyEdgeResize(leaf, SplitDirection.VERTICAL, useTop, workArea, innerGap);
+            changed = true;
+        }
+
+        if (changed)
+            this._applyLayout(wsIndex, monIndex);
+        else
+            this._queueRelayout(); // No significant change — snap back
+    }
+
+    /**
+     * Walk up from a leaf to find the fork controlling a specific edge,
+     * then compute the new splitRatio from the post-drag window geometry.
+     *
+     * @param {import('./tree.js').Node} leaf
+     * @param {string} splitDir - SplitDirection to match
+     * @param {boolean} isStartEdge - true for left/top edge, false for right/bottom
+     * @param {{x, y, width, height}} workArea
+     * @param {number} innerGap
+     */
+    _applyEdgeResize(leaf, splitDir, isStartEdge, workArea, innerGap) {
+        const halfGap = Math.round(innerGap / 2);
+        const metaWindow = leaf.window;
+        const newFrame = metaWindow.get_frame_rect();
+
+        // Walk up to find the nearest fork with the matching split direction
+        // where the moved edge corresponds to the boundary between childA and childB
+        let current = leaf;
+        while (current.parent !== null) {
+            const fork = current.parent;
+            const isChildA = fork.childA === current;
+
+            if (fork.splitDirection === splitDir) {
+                // The split boundary is the right/bottom edge of childA
+                // (equivalently, the left/top edge of childB).
+                // - If window is in childA and right/bottom edge moved → this fork
+                // - If window is in childB and left/top edge moved → this fork
+                if ((isChildA && !isStartEdge) || (!isChildA && isStartEdge)) {
+                    const forkRect = computeNodeRect(fork, workArea);
+
+                    let newRatio;
+                    if (splitDir === SplitDirection.HORIZONTAL) {
+                        if (isChildA) {
+                            const splitX = newFrame.x + newFrame.width + halfGap;
+                            newRatio = (splitX - forkRect.x) / forkRect.width;
+                        } else {
+                            const splitX = newFrame.x - halfGap;
+                            newRatio = (splitX - forkRect.x) / forkRect.width;
+                        }
+                    } else {
+                        if (isChildA) {
+                            const splitY = newFrame.y + newFrame.height + halfGap;
+                            newRatio = (splitY - forkRect.y) / forkRect.height;
+                        } else {
+                            const splitY = newFrame.y - halfGap;
+                            newRatio = (splitY - forkRect.y) / forkRect.height;
+                        }
+                    }
+
+                    fork.splitRatio = Math.min(0.9, Math.max(0.1, newRatio));
+                    return;
+                }
+            }
+
+            current = fork;
+        }
     }
 
     /**
