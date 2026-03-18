@@ -2,17 +2,33 @@
 
 Hyprland-style tiling window management for GNOME. Automatic dwindle (BSP tree) tiling, smooth animations, configurable gaps, active window borders, and Hyprland-style keybindings — all as a native GNOME Shell extension.
 
-## Features (Planned)
+## Features
 
-- [x] Extension skeleton with panel indicator and preferences
-- [ ] Dwindle BSP tree auto-tiling
-- [ ] Hyprland-style keybindings (vim-style focus/move, Super+N workspaces)
-- [ ] Configurable inner/outer gaps
-- [ ] Active window border highlight
-- [ ] Smooth Clutter.ease() animations for tiling/resizing
-- [ ] Float exceptions (per WM_CLASS)
+- [x] Dwindle BSP tree auto-tiling with per-workspace, per-monitor trees
+- [x] Hyprland-style keybindings (vim-style focus/move/resize, toggle float/split, equalize)
+- [x] Tiled window resize via keybindings (`Super+Ctrl+Arrow`) and mouse drag
+- [x] Multi-monitor support (move/focus windows across monitors)
+- [x] Configurable inner/outer gaps
+- [x] Active window border highlight (color, width, radius)
+- [x] Smooth animations (Clone+Opacity Zero technique for window transitions, border easing)
+- [x] GNOME 46-49 compatibility (single codebase with compat shims)
+- [x] Panel indicator with tiling toggle
+- [x] Preferences window
+- [ ] Float exceptions UI (backend exists via `float-list` GSettings key)
 - [ ] Scratchpad (toggle-able overlay windows)
-- [ ] GNOME 46-49 compatibility
+- [ ] Shader effects and gradient borders
+
+## Default Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Super+H/J/K/L` | Focus left/down/up/right |
+| `Super+Shift+H/J/K/L` | Move window left/down/up/right |
+| `Super+Ctrl+Arrow` | Resize window in direction |
+| `Super+V` | Toggle float |
+| `Super+P` | Toggle split direction |
+| `Super+E` | Equalize split ratios |
+| `Super+Q` | Close window |
 
 ## Requirements
 
@@ -24,7 +40,7 @@ Hyprland-style tiling window management for GNOME. Automatic dwindle (BSP tree) 
 ### From Source (Development)
 
 ```bash
-git clone https://github.com/example/hypergnome.git
+git clone https://github.com/Stasieniec/hypergnome.git
 cd hypergnome
 make install
 ```
