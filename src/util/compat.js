@@ -1,0 +1,38 @@
+import Shell from 'gi://Shell';
+import Meta from 'gi://Meta';
+
+export const SHELL_VERSION = parseInt(Shell.version);
+
+/**
+ * Maximize a window (GNOME 49 removed the flags parameter).
+ * @param {Meta.Window} win
+ */
+export function maximizeWindow(win) {
+    if (SHELL_VERSION >= 49)
+        win.maximize();
+    else
+        win.maximize(Meta.MaximizeFlags.BOTH);
+}
+
+/**
+ * Unmaximize a window (GNOME 49 removed the flags parameter).
+ * @param {Meta.Window} win
+ */
+export function unmaximizeWindow(win) {
+    if (SHELL_VERSION >= 49)
+        win.unmaximize();
+    else
+        win.unmaximize(Meta.MaximizeFlags.BOTH);
+}
+
+/**
+ * Check if a window is fully maximized (GNOME 49 changed return type).
+ * @param {Meta.Window} win
+ * @returns {boolean}
+ */
+export function isMaximized(win) {
+    if (SHELL_VERSION >= 49)
+        return win.is_maximized();
+    else
+        return win.get_maximized() === Meta.MaximizeFlags.BOTH;
+}
