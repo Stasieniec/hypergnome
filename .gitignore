@@ -1,0 +1,23 @@
+# Build artifacts
+*.zip
+dist/
+
+# Compiled schemas (regenerated from XML)
+schemas/gschemas.compiled
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node (if we add a build step later)
+node_modules/
+
+# Logs
+*.log
