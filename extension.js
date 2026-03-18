@@ -8,6 +8,8 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {TilingManager} from './src/core/tilingManager.js';
 import {KeybindingManager} from './src/keybindings.js';
 import {BorderManager} from './src/core/borderManager.js';
+import {EffectsManager} from './src/core/effectsManager.js';
+import {WindowAnimationManager} from './src/core/windowAnimationManager.js';
 import {SignalManager} from './src/util/signalManager.js';
 
 export default class HyperGnomeExtension extends Extension {
@@ -28,10 +30,26 @@ export default class HyperGnomeExtension extends Extension {
         // Active window border
         this._borderManager = new BorderManager(this._settings);
         this._borderManager.enable();
+
+        // Inactive window effects (dim)
+        this._effectsManager = new EffectsManager(this._settings);
+        this._effectsManager.enable();
+
+        // Window open/close animations
+        this._windowAnimationManager = new WindowAnimationManager(this._settings);
+        this._windowAnimationManager.enable();
     }
 
     disable() {
         // Tear down managers (before disconnecting settings signals)
+        if (this._windowAnimationManager) {
+            this._windowAnimationManager.disable();
+            this._windowAnimationManager = null;
+        }
+        if (this._effectsManager) {
+            this._effectsManager.disable();
+            this._effectsManager = null;
+        }
         if (this._borderManager) {
             this._borderManager.disable();
             this._borderManager = null;

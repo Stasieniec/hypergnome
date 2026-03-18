@@ -63,3 +63,14 @@ export function isResizeGrab(grabOp) {
         return false;
     return true;
 }
+
+/**
+ * Get all window actors (GNOME 48 moved this to global.compositor).
+ * @returns {Meta.WindowActor[]}
+ */
+export function getWindowActors() {
+    if (SHELL_VERSION >= 48)
+        return global.compositor.get_window_actors();
+    else
+        return global.get_window_actors();
+}

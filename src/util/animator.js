@@ -19,6 +19,9 @@ import Graphene from 'gi://Graphene';
 
 const ANIM_DURATION_MS = 200;
 const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
+const OPEN_CLOSE_DURATION_MS = 250;
+const OPEN_CLOSE_SCALE = 0.85;
+const WORKSPACE_SLIDE_DURATION_MS = 300;
 
 /**
  * Animate a window from its current position/size to a target rect.
@@ -157,4 +160,102 @@ export function snapWindow(metaWindow, targetRect) {
     metaWindow.move_resize_frame(
         false, targetRect.x, targetRect.y, targetRect.width, targetRect.height,
     );
+}
+
+/**
+ * Animate a window opening (scale up from center + fade in).
+ * Called from Shell.WM's 'map' handler.
+ *
+ * @param {Meta.WindowActor} actor
+ * @param {Function} onComplete - Must be called to let Shell.WM finish mapping
+ */
+export function animateWindowOpen(actor, onComplete) {
+    if (!actor) {
+        onComplete();
+        return;
+    }
+
+    actor.remove_all_transitions();
+    actor.set_pivot_point(0.5, 0.5);
+    actor.set_scale(OPEN_CLOSE_SCALE, OPEN_CLOSE_SCALE);
+    actor.opacity = 0;
+
+    actor.ease({
+        scale_x: 1,
+        scale_y: 1,
+        opacity: 255,
+        duration: OPEN_CLOSE_DURATION_MS,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        onStopped: () => {
+            try {
+                actor.set_scale(1, 1);
+                actor.opacity = 255;
+                actor.set_pivot_point(0, 0);
+            } catch (_e) {
+                // Actor may have been destroyed
+            }
+            onComplete();
+        },
+    });
+}
+
+/**
+ * Animate a window closing (scale down + fade out).
+ * Called from Shell.WM's 'destroy' handler.
+ *
+ * @param {Meta.WindowActor} actor
+ * @param {Function} onComplete - Must be called to let Shell.WM finish destroying
+ */
+export function animateWindowClose(actor, onComplete) {
+    if (!actor) {
+        onComplete();
+        return;
+    }
+
+    actor.remove_all_transitions();
+    actor.set_pivot_point(0.5, 0.5);
+
+    actor.ease({
+        scale_x: OPEN_CLOSE_SCALE,
+        scale_y: OPEN_CLOSE_SCALE,
+        opacity: 0,
+        duration: OPEN_CLOSE_DURATION_MS,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        onStopped: () => {
+            try {
+                actor.set_scale(1, 1);
+                actor.opacity = 255;
+                actor.set_pivot_point(0, 0);
+            } catch (_e) {
+                // Actor may have been destroyed
+            }
+            onComplete();
+        },
+    });
+}
+
+/**
+ * Animate a window sliding in from an offset (workspace switch effect).
+ *
+ * @param {Meta.Window} metaWindow
+ * @param {number} offsetX - Horizontal slide offset in pixels
+ * @param {number} offsetY - Vertical slide offset in pixels
+ */
+export function animateSlideIn(metaWindow, offsetX, offsetY) {
+    const actor = metaWindow.get_compositor_private();
+    if (!actor)
+        return;
+
+    actor.remove_all_transitions();
+    actor.translation_x = offsetX;
+    actor.translation_y = offsetY;
+    actor.opacity = 0;
+
+    actor.ease({
+        translation_x: 0,
+        translation_y: 0,
+        opacity: 255,
+        duration: WORKSPACE_SLIDE_DURATION_MS,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+    });
 }

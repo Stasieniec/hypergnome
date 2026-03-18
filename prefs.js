@@ -148,6 +148,102 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
                 borderColorRow.set_text(current);
         });
 
+        const borderColorSecondaryRow = new Adw.EntryRow({
+            title: _('Secondary Color (gradient)'),
+            text: settings.get_string('active-border-color-secondary'),
+        });
+        borderGroup.add(borderColorSecondaryRow);
+        borderColorSecondaryRow.connect('changed', () => {
+            settings.set_string('active-border-color-secondary',
+                borderColorSecondaryRow.get_text());
+        });
+        settings.connect('changed::active-border-color-secondary', () => {
+            const current = settings.get_string('active-border-color-secondary');
+            if (borderColorSecondaryRow.get_text() !== current)
+                borderColorSecondaryRow.set_text(current);
+        });
+
+        const gradientAngleRow = new Adw.SpinRow({
+            title: _('Gradient Angle'),
+            subtitle: _('Angle of the border gradient in degrees'),
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 360,
+                step_increment: 15,
+                page_increment: 45,
+            }),
+        });
+        borderGroup.add(gradientAngleRow);
+        settings.bind('active-border-gradient-angle', gradientAngleRow, 'value',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        const gradientSpeedRow = new Adw.SpinRow({
+            title: _('Gradient Rotation Speed'),
+            subtitle: _('Degrees per frame (0 = static)'),
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 10,
+                step_increment: 0.5,
+                page_increment: 1,
+            }),
+            digits: 1,
+        });
+        borderGroup.add(gradientSpeedRow);
+        settings.bind('active-border-gradient-speed', gradientSpeedRow, 'value',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        const focusPulseRow = new Adw.SwitchRow({
+            title: _('Focus Pulse'),
+            subtitle: _('Brief scale pulse on the border when focus changes'),
+        });
+        borderGroup.add(focusPulseRow);
+        settings.bind('focus-pulse', focusPulseRow, 'active',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        // Inactive window effects group
+        const effectsGroup = new Adw.PreferencesGroup({
+            title: _('Inactive Window Effects'),
+            description: _('Visual effects for unfocused windows'),
+        });
+        appearancePage.add(effectsGroup);
+
+        const dimInactiveRow = new Adw.SwitchRow({
+            title: _('Dim Inactive Windows'),
+            subtitle: _('Desaturate unfocused windows for visual emphasis'),
+        });
+        effectsGroup.add(dimInactiveRow);
+        settings.bind('dim-inactive', dimInactiveRow, 'active',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        const dimStrengthRow = new Adw.SpinRow({
+            title: _('Dim Strength'),
+            subtitle: _('How much to desaturate inactive windows (0.0 - 1.0)'),
+            adjustment: new Gtk.Adjustment({
+                lower: 0.0,
+                upper: 1.0,
+                step_increment: 0.05,
+                page_increment: 0.1,
+            }),
+            digits: 2,
+        });
+        effectsGroup.add(dimStrengthRow);
+        settings.bind('dim-strength', dimStrengthRow, 'value',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        // Animations group
+        const animGroup = new Adw.PreferencesGroup({
+            title: _('Animations'),
+        });
+        appearancePage.add(animGroup);
+
+        const animEnabledRow = new Adw.SwitchRow({
+            title: _('Enable Animations'),
+            subtitle: _('Smooth window open/close and tiling animations'),
+        });
+        animGroup.add(animEnabledRow);
+        settings.bind('animation-enabled', animEnabledRow, 'active',
+            Gio.SettingsBindFlags.DEFAULT);
+
         // Keep settings alive for the window lifetime
         window._settings = settings;
     }

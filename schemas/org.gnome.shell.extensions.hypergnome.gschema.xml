@@ -61,6 +61,51 @@
       <description>Corner radius of the active window border in pixels</description>
     </key>
 
+    <!-- Inactive window effects -->
+    <key name="dim-inactive" type="b">
+      <default>true</default>
+      <summary>Dim inactive windows</summary>
+      <description>Desaturate unfocused windows for visual emphasis on the active window</description>
+    </key>
+
+    <key name="dim-strength" type="d">
+      <default>0.3</default>
+      <summary>Dim strength</summary>
+      <description>How much to desaturate inactive windows (0.0 - 1.0)</description>
+    </key>
+
+    <!-- Gradient border -->
+    <key name="active-border-color-secondary" type="s">
+      <default>''</default>
+      <summary>Secondary border color</summary>
+      <description>Second color for gradient border (empty = solid color)</description>
+    </key>
+
+    <key name="active-border-gradient-angle" type="i">
+      <default>45</default>
+      <summary>Gradient angle</summary>
+      <description>Angle of the border gradient in degrees</description>
+    </key>
+
+    <key name="active-border-gradient-speed" type="d">
+      <default>2.0</default>
+      <summary>Gradient rotation speed</summary>
+      <description>Speed of gradient rotation in degrees per frame (0 = static)</description>
+    </key>
+
+    <!-- Animations -->
+    <key name="animation-enabled" type="b">
+      <default>true</default>
+      <summary>Enable animations</summary>
+      <description>Enable smooth window open/close and tiling animations</description>
+    </key>
+
+    <key name="focus-pulse" type="b">
+      <default>true</default>
+      <summary>Focus pulse effect</summary>
+      <description>Brief scale pulse on the border when focus changes</description>
+    </key>
+
     <!-- Float exceptions -->
     <key name="float-list" type="as">
       <default>[]</default>

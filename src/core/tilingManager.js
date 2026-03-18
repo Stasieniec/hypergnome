@@ -15,7 +15,7 @@ import {moveWindowToMonitor, focusOnAdjacentMonitor} from './monitorUtils.js';
 import {shouldTile} from '../util/windowFilters.js';
 import {unmaximizeWindow, isMaximized, isConstrained, isResizeGrab} from '../util/compat.js';
 import {SignalManager} from '../util/signalManager.js';
-import {animateWindow, snapWindow} from '../util/animator.js';
+import {animateWindow, snapWindow, animateSlideIn} from '../util/animator.js';
 
 const DEBOUNCE_MS = 200;
 
@@ -393,8 +393,29 @@ export class TilingManager {
     }
 
     _onWorkspaceChanged() {
-        if (this._isTilingActive())
-            this._relayoutActiveWorkspace();
+        if (!this._isTilingActive())
+            return;
+
+        this._relayoutActiveWorkspace();
+
+        // Slide-in animation for windows on the new workspace
+        if (this._settings.get_boolean('animation-enabled')) {
+            try {
+                const wsIndex = global.workspace_manager.get_active_workspace_index();
+                const nMonitors = global.display.get_n_monitors();
+                const SLIDE_OFFSET = 60;
+                for (let i = 0; i < nMonitors; i++) {
+                    const tree = this._trees.get(`${wsIndex}:${i}`);
+                    if (!tree)
+                        continue;
+                    for (const win of tree.getWindows()) {
+                        animateSlideIn(win, 0, SLIDE_OFFSET);
+                    }
+                }
+            } catch (_e) {
+                // Non-critical — slide animation failure shouldn't break tiling
+            }
+        }
     }
 
     _onWindowEnteredMonitor(metaWindow, monIndex) {
