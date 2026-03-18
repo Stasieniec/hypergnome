@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.hypergnome"
+          path="/org/gnome/shell/extensions/hypergnome/">
+
+    <!-- General -->
+    <key name="tiling-enabled" type="b">
+      <default>true</default>
+      <summary>Enable tiling</summary>
+      <description>Whether automatic tiling is active</description>
+    </key>
+
+    <key name="show-indicator" type="b">
+      <default>true</default>
+      <summary>Show panel indicator</summary>
+      <description>Show the HyperGnome indicator in the top panel</description>
+    </key>
+
+    <!-- Gaps -->
+    <key name="inner-gap" type="i">
+      <default>5</default>
+      <summary>Inner gap</summary>
+      <description>Gap between tiled windows in pixels</description>
+    </key>
+
+    <key name="outer-gap" type="i">
+      <default>10</default>
+      <summary>Outer gap</summary>
+      <description>Gap between tiled windows and screen edges in pixels</description>
+    </key>
+
+    <!-- Layout -->
+    <key name="split-ratio" type="d">
+      <default>0.5</default>
+      <summary>Default split ratio</summary>
+      <description>Default ratio when splitting a window (0.1 - 0.9)</description>
+    </key>
+
+    <!-- Active border -->
+    <key name="active-border-size" type="i">
+      <default>3</default>
+      <summary>Active border size</summary>
+      <description>Width of the active window border in pixels</description>
+    </key>
+
+    <key name="active-border-color" type="s">
+      <default>'rgb(38,162,105)'</default>
+      <summary>Active border color</summary>
+      <description>CSS color for the active window border</description>
+    </key>
+
+    <key name="active-border-radius" type="i">
+      <default>8</default>
+      <summary>Active border radius</summary>
+      <description>Corner radius of the active window border in pixels</description>
+    </key>
+
+    <!-- Float exceptions -->
+    <key name="float-list" type="as">
+      <default>[]</default>
+      <summary>Float list</summary>
+      <description>List of WM_CLASS values that should always float</description>
+    </key>
+
+  </schema>
+</schemalist>

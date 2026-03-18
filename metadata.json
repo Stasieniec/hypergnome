@@ -1,0 +1,11 @@
+{
+    "uuid": "hypergnome@hypergnome.dev",
+    "name": "HyperGnome",
+    "description": "Hyprland-style tiling window management for GNOME. Automatic dwindle tiling, smooth animations, gaps, active window borders, and Hyprland keybindings.",
+    "version": 1,
+    "shell-version": ["46", "47", "48", "49"],
+    "url": "https://github.com/example/hypergnome",
+    "settings-schema": "org.gnome.shell.extensions.hypergnome",
+    "gettext-domain": "hypergnome",
+    "session-modes": ["user"]
+}

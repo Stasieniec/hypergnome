@@ -1,0 +1,16 @@
+/* HyperGnome Extension Styles */
+
+/* Panel indicator */
+.hypergnome-indicator {
+    padding: 0 4px;
+}
+
+/* Menu header */
+.hypergnome-menu-header {
+    font-weight: bold;
+}
+
+/* Active window border overlay */
+.hypergnome-active-border {
+    border-style: solid;
+}
