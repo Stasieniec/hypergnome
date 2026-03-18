@@ -1,12 +1,12 @@
-import GLib from 'gi://GLib';
-import Gio from 'gi://Gio';
 import St from 'gi://St';
-import Clutter from 'gi://Clutter';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+
+import {TilingManager} from './src/core/tilingManager.js';
+import {KeybindingManager} from './src/keybindings.js';
 
 export default class HyperGnomeExtension extends Extension {
     enable() {
@@ -15,9 +15,26 @@ export default class HyperGnomeExtension extends Extension {
 
         this._createIndicator();
         this._connectSettings();
+
+        // Tiling engine
+        this._tilingManager = new TilingManager(this._settings);
+        this._keybindingManager = new KeybindingManager(this._settings, this._tilingManager);
+
+        this._tilingManager.enable();
+        this._keybindingManager.enable();
     }
 
     disable() {
+        // Tear down tiling first (before disconnecting settings signals)
+        if (this._keybindingManager) {
+            this._keybindingManager.disable();
+            this._keybindingManager = null;
+        }
+        if (this._tilingManager) {
+            this._tilingManager.disable();
+            this._tilingManager = null;
+        }
+
         this._disconnectAll();
         this._destroyIndicator();
         this._settings = null;
@@ -103,7 +120,7 @@ export default class HyperGnomeExtension extends Extension {
         for (const {obj, id} of this._signals) {
             try {
                 obj.disconnect(id);
-            } catch (e) {
+            } catch (_e) {
                 // Object may already be destroyed
             }
         }

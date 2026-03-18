@@ -42,6 +42,7 @@ dist: schemas
 		prefs.js \
 		stylesheet.css \
 		schemas/ \
+		src/ \
 		LICENSE \
 		--exclude='schemas/*.xml'
 	@echo "Built dist/$(UUID).zip"
