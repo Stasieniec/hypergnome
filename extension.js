@@ -7,11 +7,13 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {TilingManager} from './src/core/tilingManager.js';
 import {KeybindingManager} from './src/keybindings.js';
+import {BorderManager} from './src/core/borderManager.js';
+import {SignalManager} from './src/util/signalManager.js';
 
 export default class HyperGnomeExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
-        this._signals = [];
+        this._signals = new SignalManager();
 
         this._createIndicator();
         this._connectSettings();
@@ -22,10 +24,18 @@ export default class HyperGnomeExtension extends Extension {
 
         this._tilingManager.enable();
         this._keybindingManager.enable();
+
+        // Active window border
+        this._borderManager = new BorderManager(this._settings);
+        this._borderManager.enable();
     }
 
     disable() {
-        // Tear down tiling first (before disconnecting settings signals)
+        // Tear down managers (before disconnecting settings signals)
+        if (this._borderManager) {
+            this._borderManager.disable();
+            this._borderManager = null;
+        }
         if (this._keybindingManager) {
             this._keybindingManager.disable();
             this._keybindingManager = null;
@@ -35,7 +45,7 @@ export default class HyperGnomeExtension extends Extension {
             this._tilingManager = null;
         }
 
-        this._disconnectAll();
+        this._signals.destroy();
         this._destroyIndicator();
         this._settings = null;
     }
@@ -63,7 +73,7 @@ export default class HyperGnomeExtension extends Extension {
             'Tiling',
             this._settings.get_boolean('tiling-enabled'),
         );
-        this._connectSignal(tilingToggle, 'toggled', (_item, state) => {
+        this._signals.connect(tilingToggle, 'toggled', (_item, state) => {
             this._settings.set_boolean('tiling-enabled', state);
         });
         this._indicator.menu.addMenuItem(tilingToggle);
@@ -74,7 +84,7 @@ export default class HyperGnomeExtension extends Extension {
 
         // Open preferences
         const prefsItem = new PopupMenu.PopupMenuItem('Preferences');
-        this._connectSignal(prefsItem, 'activate', () => {
+        this._signals.connect(prefsItem, 'activate', () => {
             this.openPreferences();
         });
         this._indicator.menu.addMenuItem(prefsItem);
@@ -96,34 +106,15 @@ export default class HyperGnomeExtension extends Extension {
     // -- Settings --
 
     _connectSettings() {
-        this._connectSignal(this._settings, 'changed::show-indicator', () => {
+        this._signals.connect(this._settings, 'changed::show-indicator', () => {
             if (this._indicator)
                 this._indicator.visible = this._settings.get_boolean('show-indicator');
         });
 
-        this._connectSignal(this._settings, 'changed::tiling-enabled', () => {
+        this._signals.connect(this._settings, 'changed::tiling-enabled', () => {
             const enabled = this._settings.get_boolean('tiling-enabled');
             if (this._tilingToggle)
                 this._tilingToggle.setToggleState(enabled);
         });
-    }
-
-    // -- Signal Management --
-
-    _connectSignal(obj, signal, handler) {
-        const id = obj.connect(signal, handler);
-        this._signals.push({obj, id});
-        return id;
-    }
-
-    _disconnectAll() {
-        for (const {obj, id} of this._signals) {
-            try {
-                obj.disconnect(id);
-            } catch (_e) {
-                // Object may already be destroyed
-            }
-        }
-        this._signals = [];
     }
 }

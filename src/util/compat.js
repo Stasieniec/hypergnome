@@ -36,3 +36,17 @@ export function isMaximized(win) {
     else
         return win.get_maximized() === Meta.MaximizeFlags.BOTH;
 }
+
+/**
+ * Check if a window has ANY maximize/tile constraint (full, horizontal, or
+ * vertical).  GNOME's native half-tile sets HORIZONTAL or VERTICAL flags
+ * which prevent move_resize_frame from working correctly.
+ * @param {Meta.Window} win
+ * @returns {boolean}
+ */
+export function isConstrained(win) {
+    if (SHELL_VERSION >= 49)
+        return win.is_maximized();
+    else
+        return win.get_maximized() !== Meta.MaximizeFlags.NONE;
+}
