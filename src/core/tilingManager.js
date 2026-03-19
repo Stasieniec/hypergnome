@@ -132,7 +132,6 @@ export class TilingManager {
 
         // Clear remaining state
         this._floatingWindows.clear();
-        this._grabbedWindow = null;
         this._movingWindow = null;
         this._settings = null;
     }
@@ -362,12 +361,11 @@ export class TilingManager {
         // This handler exists as a hook for future features (e.g. active border).
     }
 
-    _onGrabBegin(metaWindow, _grabOp) {
-        this._grabbedWindow = metaWindow;
+    _onGrabBegin(_metaWindow, _grabOp) {
+        // Reserved for future grab-aware behaviour.
     }
 
     _onGrabEnd(metaWindow, grabOp) {
-        this._grabbedWindow = null;
 
         if (!metaWindow)
             return;
@@ -408,8 +406,9 @@ export class TilingManager {
                     const tree = this._trees.get(`${wsIndex}:${i}`);
                     if (!tree)
                         continue;
+                    const dur = this._settings.get_int('animation-duration');
                     for (const win of tree.getWindows()) {
-                        animateSlideIn(win, 0, SLIDE_OFFSET);
+                        animateSlideIn(win, 0, SLIDE_OFFSET, dur);
                     }
                 }
             } catch (_e) {
@@ -683,7 +682,8 @@ export class TilingManager {
 
                 // animateWindow captures old rect, calls move_resize_frame,
                 // then animates the actor from old to new position.
-                animateWindow(metaWindow, targetRect);
+                animateWindow(metaWindow, targetRect,
+                    this._settings.get_int('animation-duration'));
             } catch (_e) {
                 // Window may have been destroyed between layout calc and apply
             }
