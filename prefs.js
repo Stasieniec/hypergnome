@@ -261,6 +261,15 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
         settings.bind('animation-duration', animDurationRow, 'value',
             Gio.SettingsBindFlags.DEFAULT);
 
+        // -- Keybindings Page --
+        const keybindingsPage = new Adw.PreferencesPage({
+            title: _('Keybindings'),
+            icon_name: 'input-keyboard-symbolic',
+        });
+        window.add(keybindingsPage);
+
+        this._buildKeybindingsPage(keybindingsPage, settings);
+
         // Keep settings alive for the window lifetime
         window._settings = settings;
     }
@@ -383,5 +392,262 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
 
         settings.connect('changed::float-list', refreshList);
         refreshList();
+    }
+
+    // =========================================================================
+    // Keybindings page
+    // =========================================================================
+
+    _buildKeybindingsPage(page, settings) {
+        // Static overrides — these are always active when the extension is enabled
+        const STATIC_OVERRIDES = [
+            {
+                gnomeName: 'minimize',
+                gnomeLabel: 'Minimize Window',
+                schema: 'org.gnome.desktop.wm.keybindings',
+                replacement: 'Disabled (Focus Left uses Super+H)',
+            },
+            {
+                gnomeName: 'toggle-tiled-left',
+                gnomeLabel: 'Tile Window Left',
+                schema: 'org.gnome.mutter.keybindings',
+                replacement: 'Replaced by Focus Left',
+            },
+            {
+                gnomeName: 'toggle-tiled-right',
+                gnomeLabel: 'Tile Window Right',
+                schema: 'org.gnome.mutter.keybindings',
+                replacement: 'Replaced by Focus Right',
+            },
+            {
+                gnomeName: 'unmaximize',
+                gnomeLabel: 'Unmaximize Window',
+                schema: 'org.gnome.desktop.wm.keybindings',
+                replacement: 'Replaced by Focus Down',
+            },
+        ];
+
+        // Our keybinding definitions grouped by category
+        const BINDING_GROUPS = [
+            {
+                title: _('Focus'),
+                bindings: [
+                    {key: 'tile-focus-left', label: _('Focus Left')},
+                    {key: 'tile-focus-down', label: _('Focus Down')},
+                    {key: 'tile-focus-up', label: _('Focus Up')},
+                    {key: 'tile-focus-right', label: _('Focus Right')},
+                ],
+            },
+            {
+                title: _('Move Window'),
+                bindings: [
+                    {key: 'tile-move-left', label: _('Move Left')},
+                    {key: 'tile-move-down', label: _('Move Down')},
+                    {key: 'tile-move-up', label: _('Move Up')},
+                    {key: 'tile-move-right', label: _('Move Right')},
+                ],
+            },
+            {
+                title: _('Resize Window'),
+                bindings: [
+                    {key: 'tile-resize-left', label: _('Resize Left')},
+                    {key: 'tile-resize-down', label: _('Resize Down')},
+                    {key: 'tile-resize-up', label: _('Resize Up')},
+                    {key: 'tile-resize-right', label: _('Resize Right')},
+                ],
+            },
+            {
+                title: _('Actions'),
+                bindings: [
+                    {key: 'tile-toggle-float', label: _('Toggle Float')},
+                    {key: 'tile-close-window', label: _('Close Window')},
+                    {key: 'tile-toggle-split', label: _('Toggle Split')},
+                    {key: 'tile-equalize', label: _('Equalize Splits')},
+                ],
+            },
+        ];
+
+        // -- Overridden GNOME Shortcuts --
+        const overrideGroup = new Adw.PreferencesGroup({
+            title: _('Overridden GNOME Shortcuts'),
+            description: _('These GNOME shortcuts are replaced while HyperGnome is active. They are restored when the extension is disabled.'),
+        });
+        page.add(overrideGroup);
+
+        for (const override of STATIC_OVERRIDES) {
+            const accels = this._getSystemAccelerators(
+                override.schema, override.gnomeName);
+            const accelStr = accels.length > 0
+                ? accels.join(', ')
+                : 'unset';
+
+            const row = new Adw.ActionRow({
+                title: override.gnomeLabel,
+                subtitle: override.replacement,
+            });
+
+            // Show the original GNOME accelerator(s)
+            const box = new Gtk.Box({
+                spacing: 4,
+                valign: Gtk.Align.CENTER,
+            });
+            for (const accel of accels) {
+                box.append(new Gtk.ShortcutLabel({
+                    accelerator: accel,
+                    disabled_text: accelStr,
+                }));
+            }
+            if (accels.length === 0) {
+                box.append(new Gtk.Label({
+                    label: 'unset',
+                    css_classes: ['dim-label'],
+                }));
+            }
+            row.add_suffix(box);
+            overrideGroup.add(row);
+        }
+
+        // -- Dynamic conflicts --
+        const dynamicConflicts = this._detectDynamicConflicts(
+            settings, STATIC_OVERRIDES);
+        if (dynamicConflicts.length > 0) {
+            const conflictGroup = new Adw.PreferencesGroup({
+                title: _('Additional Conflicts Detected'),
+                description: _('These GNOME shortcuts use the same keys as HyperGnome bindings. HyperGnome takes priority while the extension is active.'),
+            });
+            page.add(conflictGroup);
+
+            for (const conflict of dynamicConflicts) {
+                const row = new Adw.ActionRow({
+                    title: `${this._humanizeBindingName(conflict.gnomeName)}`,
+                    subtitle: `Conflicts with ${conflict.ourLabel}`,
+                    icon_name: 'dialog-warning-symbolic',
+                });
+
+                const label = new Gtk.ShortcutLabel({
+                    accelerator: conflict.accelerator,
+                    valign: Gtk.Align.CENTER,
+                });
+                row.add_suffix(label);
+                conflictGroup.add(row);
+            }
+        }
+
+        // -- HyperGnome Keybindings --
+        for (const group of BINDING_GROUPS) {
+            const prefsGroup = new Adw.PreferencesGroup({
+                title: group.title,
+            });
+            page.add(prefsGroup);
+
+            for (const binding of group.bindings) {
+                const accels = settings.get_strv(binding.key);
+                const row = new Adw.ActionRow({
+                    title: binding.label,
+                });
+
+                const box = new Gtk.Box({
+                    spacing: 4,
+                    valign: Gtk.Align.CENTER,
+                });
+                for (const accel of accels) {
+                    if (accel) {
+                        box.append(new Gtk.ShortcutLabel({
+                            accelerator: accel,
+                        }));
+                    }
+                }
+                row.add_suffix(box);
+                prefsGroup.add(row);
+            }
+        }
+    }
+
+    // =========================================================================
+    // Conflict detection helpers
+    // =========================================================================
+
+    /**
+     * Read accelerators for a system keybinding.
+     */
+    _getSystemAccelerators(schemaId, key) {
+        try {
+            const s = new Gio.Settings({schema_id: schemaId});
+            return s.get_strv(key).filter(a => a && a !== '');
+        } catch (_e) {
+            return [];
+        }
+    }
+
+    /**
+     * Scan system keybinding schemas for conflicts with our bindings,
+     * excluding the ones we statically override.
+     */
+    _detectDynamicConflicts(settings, staticOverrides) {
+        const staticNames = new Set(staticOverrides.map(o => o.gnomeName));
+        const conflicts = [];
+
+        // Build a map of all our accelerators -> binding label
+        const ourAccels = new Map();
+        const bindingKeys = settings.list_keys().filter(k => k.startsWith('tile-'));
+        for (const key of bindingKeys) {
+            const accels = settings.get_strv(key);
+            for (const accel of accels) {
+                if (accel)
+                    ourAccels.set(accel.toLowerCase(), this._humanizeBindingName(key));
+            }
+        }
+
+        // Check system schemas
+        const schemas = [
+            'org.gnome.desktop.wm.keybindings',
+            'org.gnome.mutter.keybindings',
+            'org.gnome.shell.keybindings',
+        ];
+
+        for (const schemaId of schemas) {
+            try {
+                const s = new Gio.Settings({schema_id: schemaId});
+                for (const key of s.list_keys()) {
+                    if (staticNames.has(key))
+                        continue;
+
+                    let accels;
+                    try {
+                        accels = s.get_strv(key);
+                    } catch (_e2) {
+                        continue; // Not a string array key
+                    }
+
+                    for (const accel of accels) {
+                        if (!accel)
+                            continue;
+                        const ourLabel = ourAccels.get(accel.toLowerCase());
+                        if (ourLabel) {
+                            conflicts.push({
+                                gnomeName: key,
+                                gnomeSchema: schemaId,
+                                accelerator: accel,
+                                ourLabel,
+                            });
+                        }
+                    }
+                }
+            } catch (_e) {
+                // Schema not available on this system
+            }
+        }
+
+        return conflicts;
+    }
+
+    /**
+     * Convert a GSettings key name to a human-readable label.
+     */
+    _humanizeBindingName(name) {
+        return name
+            .replace(/^tile-/, '')
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
     }
 }
