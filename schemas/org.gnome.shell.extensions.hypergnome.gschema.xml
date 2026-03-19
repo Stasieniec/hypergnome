@@ -115,50 +115,50 @@
 
     <!-- Keybindings: Focus -->
     <key name="tile-focus-left" type="as">
-      <default><![CDATA[['<Super>h']]]></default>
+      <default><![CDATA[['<Super>h', '<Super>Left']]]></default>
       <summary>Focus window to the left</summary>
       <description>Move keyboard focus to the nearest window on the left</description>
     </key>
 
     <key name="tile-focus-down" type="as">
-      <default><![CDATA[['<Super>j']]]></default>
+      <default><![CDATA[['<Super>j', '<Super>Down']]]></default>
       <summary>Focus window below</summary>
       <description>Move keyboard focus to the nearest window below</description>
     </key>
 
     <key name="tile-focus-up" type="as">
-      <default><![CDATA[['<Super>k']]]></default>
+      <default><![CDATA[['<Super>k', '<Super>Up']]]></default>
       <summary>Focus window above</summary>
       <description>Move keyboard focus to the nearest window above</description>
     </key>
 
     <key name="tile-focus-right" type="as">
-      <default><![CDATA[['<Super>l']]]></default>
+      <default><![CDATA[['<Super>l', '<Super>Right']]]></default>
       <summary>Focus window to the right</summary>
       <description>Move keyboard focus to the nearest window on the right</description>
     </key>
 
     <!-- Keybindings: Move window -->
     <key name="tile-move-left" type="as">
-      <default><![CDATA[['<Super><Shift>h']]]></default>
+      <default><![CDATA[['<Super><Shift>h', '<Super><Shift>Left']]]></default>
       <summary>Move window left</summary>
       <description>Swap the focused window with its left neighbor</description>
     </key>
 
     <key name="tile-move-down" type="as">
-      <default><![CDATA[['<Super><Shift>j']]]></default>
+      <default><![CDATA[['<Super><Shift>j', '<Super><Shift>Down']]]></default>
       <summary>Move window down</summary>
       <description>Swap the focused window with its neighbor below</description>
     </key>
 
     <key name="tile-move-up" type="as">
-      <default><![CDATA[['<Super><Shift>k']]]></default>
+      <default><![CDATA[['<Super><Shift>k', '<Super><Shift>Up']]]></default>
       <summary>Move window up</summary>
       <description>Swap the focused window with its neighbor above</description>
     </key>
 
     <key name="tile-move-right" type="as">
-      <default><![CDATA[['<Super><Shift>l']]]></default>
+      <default><![CDATA[['<Super><Shift>l', '<Super><Shift>Right']]]></default>
       <summary>Move window right</summary>
       <description>Swap the focused window with its right neighbor</description>
     </key>
@@ -190,25 +190,25 @@
 
     <!-- Keybindings: Resize -->
     <key name="tile-resize-left" type="as">
-      <default><![CDATA[['<Super><Control>Left']]]></default>
+      <default><![CDATA[['<Super><Control>Left', '<Super><Control>h']]]></default>
       <summary>Resize window left</summary>
       <description>Grow the focused window to the left</description>
     </key>
 
     <key name="tile-resize-down" type="as">
-      <default><![CDATA[['<Super><Control>Down']]]></default>
+      <default><![CDATA[['<Super><Control>Down', '<Super><Control>j']]]></default>
       <summary>Resize window down</summary>
       <description>Grow the focused window downward</description>
     </key>
 
     <key name="tile-resize-up" type="as">
-      <default><![CDATA[['<Super><Control>Up']]]></default>
+      <default><![CDATA[['<Super><Control>Up', '<Super><Control>k']]]></default>
       <summary>Resize window up</summary>
       <description>Grow the focused window upward</description>
     </key>
 
     <key name="tile-resize-right" type="as">
-      <default><![CDATA[['<Super><Control>Right']]]></default>
+      <default><![CDATA[['<Super><Control>Right', '<Super><Control>l']]]></default>
       <summary>Resize window right</summary>
       <description>Grow the focused window to the right</description>
     </key>

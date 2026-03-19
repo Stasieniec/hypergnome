@@ -59,6 +59,11 @@ export class KeybindingManager {
         this._overrideBinding('toggle-tiled-right', () => {
             this._tilingManager.focusDirection('right');
         });
+
+        // Super+Down is GNOME unmaximize — conflicts with our focus-down
+        this._overrideBinding('unmaximize', () => {
+            this._tilingManager.focusDirection('down');
+        });
     }
 
     disable() {
