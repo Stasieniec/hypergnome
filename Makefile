@@ -33,7 +33,7 @@ disable:
 logs:
 	journalctl -f -o cat /usr/bin/gnome-shell
 
-dist: schemas
+dist:
 	@mkdir -p dist
 	@rm -f dist/$(UUID).zip
 	zip -r dist/$(UUID).zip \
@@ -41,10 +41,9 @@ dist: schemas
 		extension.js \
 		prefs.js \
 		stylesheet.css \
-		schemas/ \
+		schemas/*.xml \
 		src/ \
-		LICENSE \
-		--exclude='schemas/*.xml'
+		LICENSE
 	@echo "Built dist/$(UUID).zip"
 
 clean:
