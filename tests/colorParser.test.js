@@ -35,7 +35,7 @@ describe('parseColor — rgb/rgba', () => {
         approxEqual(c.b, 50 / 255, 'b');
     });
 
-    it('parses the default green color', () => {
+    it('parses low-range rgb values', () => {
         const c = parseColor('rgb(38,162,105)');
         approxEqual(c.r, 38 / 255, 'r');
         approxEqual(c.g, 162 / 255, 'g');
@@ -95,8 +95,8 @@ describe('parseColor — fallback', () => {
     it('returns fallback for null', () => {
         const c = parseColor(null);
         approxEqual(c.r, 0.15, 'r');
-        approxEqual(c.g, 0.64, 'g');
-        approxEqual(c.b, 0.41, 'b');
+        approxEqual(c.g, 0.39, 'g');
+        approxEqual(c.b, 0.82, 'b');
         approxEqual(c.a, 1.0, 'a');
     });
 

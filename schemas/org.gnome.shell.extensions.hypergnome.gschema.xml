@@ -50,7 +50,7 @@
     </key>
 
     <key name="active-border-color" type="s">
-      <default>'rgb(38,162,105)'</default>
+      <default>'rgb(38,100,210)'</default>
       <summary>Active border color</summary>
       <description>CSS color for the active window border</description>
     </key>
@@ -76,7 +76,7 @@
 
     <!-- Gradient border -->
     <key name="active-border-color-secondary" type="s">
-      <default>''</default>
+      <default>'rgb(38,162,105)'</default>
       <summary>Secondary border color</summary>
       <description>Second color for gradient border (empty = solid color)</description>
     </key>

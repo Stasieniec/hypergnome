@@ -5,7 +5,7 @@
  * Returns normalized {r, g, b, a} with values in 0.0–1.0.
  */
 
-const FALLBACK = {r: 0.15, g: 0.64, b: 0.41, a: 1.0};
+const FALLBACK = {r: 0.15, g: 0.39, b: 0.82, a: 1.0};
 
 /**
  * Parse a CSS color string into normalized RGBA components.
