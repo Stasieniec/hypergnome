@@ -13,7 +13,7 @@ import Clutter from 'gi://Clutter';
 
 import {SignalManager} from '../util/signalManager.js';
 
-const OPEN_DURATION_MS = 200;
+const DEFAULT_DURATION_MS = 200;
 const OPEN_SCALE = 0.9;
 
 export class WindowAnimationManager {
@@ -23,7 +23,7 @@ export class WindowAnimationManager {
     constructor(settings) {
         this._settings = settings;
         this._signals = new SignalManager();
-        this._pendingActors = new Set();
+        this._pendingActors = new Map(); // actor -> {firstFrameId, destroyId}
     }
 
     enable() {
@@ -35,8 +35,12 @@ export class WindowAnimationManager {
         this._signals.destroy();
 
         // Clean up any actors we're tracking
-        for (const actor of this._pendingActors) {
+        for (const [actor, sigs] of this._pendingActors) {
             try {
+                if (sigs.firstFrameId)
+                    actor.disconnect(sigs.firstFrameId);
+                if (sigs.destroyId)
+                    actor.disconnect(sigs.destroyId);
                 actor.opacity = 255;
                 actor.set_scale(1, 1);
                 actor.set_pivot_point(0, 0);
@@ -60,20 +64,41 @@ export class WindowAnimationManager {
         if (!actor)
             return;
 
-        // Wait for the actor's first frame to be drawn before animating
-        this._pendingActors.add(actor);
-        const sigId = actor.connect('first-frame', () => {
-            try {
-                actor.disconnect(sigId);
-            } catch (_e) {
-                // Already disconnected
-            }
+        // Track signals so we can clean up if the actor is destroyed
+        const sigs = {firstFrameId: null, destroyId: null};
+        this._pendingActors.set(actor, sigs);
+
+        sigs.firstFrameId = actor.connect('first-frame', () => {
+            this._cleanupPending(actor);
+            const dur = this._settings
+                ? this._settings.get_int('animation-duration')
+                : DEFAULT_DURATION_MS;
+            this._animateOpen(actor, dur);
+        });
+
+        // If the actor is destroyed before first-frame, clean up
+        sigs.destroyId = actor.connect('destroy', () => {
             this._pendingActors.delete(actor);
-            this._animateOpen(actor);
         });
     }
 
-    _animateOpen(actor) {
+    _cleanupPending(actor) {
+        const sigs = this._pendingActors.get(actor);
+        if (!sigs)
+            return;
+        this._pendingActors.delete(actor);
+        try {
+            if (sigs.firstFrameId)
+                actor.disconnect(sigs.firstFrameId);
+            if (sigs.destroyId)
+                actor.disconnect(sigs.destroyId);
+        } catch (_e) {
+            // Already disconnected
+        }
+    }
+
+    _animateOpen(actor, durationMs) {
+        const duration = durationMs ?? DEFAULT_DURATION_MS;
         try {
             actor.remove_all_transitions();
             actor.set_pivot_point(0.5, 0.5);
@@ -84,7 +109,7 @@ export class WindowAnimationManager {
                 scale_x: 1,
                 scale_y: 1,
                 opacity: 255,
-                duration: OPEN_DURATION_MS,
+                duration,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onStopped: () => {
                     try {
