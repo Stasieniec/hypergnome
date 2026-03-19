@@ -19,8 +19,6 @@ import Graphene from 'gi://Graphene';
 
 const ANIM_DURATION_MS = 200;
 const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
-const OPEN_CLOSE_DURATION_MS = 250;
-const OPEN_CLOSE_SCALE = 0.85;
 const WORKSPACE_SLIDE_DURATION_MS = 300;
 
 /**
@@ -68,16 +66,19 @@ export function animateWindow(metaWindow, targetRect) {
 
     // 1. Create a clone at the OLD visual position
     let clone;
+    const cloneX = oldRect.x - xShadow;
+    const cloneY = oldRect.y - yShadow;
+    const cloneW = oldRect.width + 2 * xShadow;
+    const cloneH = oldRect.height + 2 * yShadow;
     try {
         clone = new Clutter.Clone({
             source: actor,
             reactive: false,
-            x: oldRect.x - xShadow,
-            y: oldRect.y - yShadow,
-            width: oldRect.width + 2 * xShadow,
-            height: oldRect.height + 2 * yShadow,
             pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
         });
+        // Set position/size before adding to avoid allocation warnings
+        clone.set_position(cloneX, cloneY);
+        clone.set_size(cloneW, cloneH);
         global.window_group.add_child(clone);
     } catch (_e) {
         // Clone creation failed — fall back to instant move
@@ -160,78 +161,6 @@ export function snapWindow(metaWindow, targetRect) {
     metaWindow.move_resize_frame(
         false, targetRect.x, targetRect.y, targetRect.width, targetRect.height,
     );
-}
-
-/**
- * Animate a window opening (scale up from center + fade in).
- * Called from Shell.WM's 'map' handler.
- *
- * @param {Meta.WindowActor} actor
- * @param {Function} onComplete - Must be called to let Shell.WM finish mapping
- */
-export function animateWindowOpen(actor, onComplete) {
-    if (!actor) {
-        onComplete();
-        return;
-    }
-
-    actor.remove_all_transitions();
-    actor.set_pivot_point(0.5, 0.5);
-    actor.set_scale(OPEN_CLOSE_SCALE, OPEN_CLOSE_SCALE);
-    actor.opacity = 0;
-
-    actor.ease({
-        scale_x: 1,
-        scale_y: 1,
-        opacity: 255,
-        duration: OPEN_CLOSE_DURATION_MS,
-        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        onStopped: () => {
-            try {
-                actor.set_scale(1, 1);
-                actor.opacity = 255;
-                actor.set_pivot_point(0, 0);
-            } catch (_e) {
-                // Actor may have been destroyed
-            }
-            onComplete();
-        },
-    });
-}
-
-/**
- * Animate a window closing (scale down + fade out).
- * Called from Shell.WM's 'destroy' handler.
- *
- * @param {Meta.WindowActor} actor
- * @param {Function} onComplete - Must be called to let Shell.WM finish destroying
- */
-export function animateWindowClose(actor, onComplete) {
-    if (!actor) {
-        onComplete();
-        return;
-    }
-
-    actor.remove_all_transitions();
-    actor.set_pivot_point(0.5, 0.5);
-
-    actor.ease({
-        scale_x: OPEN_CLOSE_SCALE,
-        scale_y: OPEN_CLOSE_SCALE,
-        opacity: 0,
-        duration: OPEN_CLOSE_DURATION_MS,
-        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        onStopped: () => {
-            try {
-                actor.set_scale(1, 1);
-                actor.opacity = 255;
-                actor.set_pivot_point(0, 0);
-            } catch (_e) {
-                // Actor may have been destroyed
-            }
-            onComplete();
-        },
-    });
 }
 
 /**

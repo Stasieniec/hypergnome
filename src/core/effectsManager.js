@@ -1,8 +1,9 @@
 /**
  * Visual effects manager — dim/desaturate inactive windows.
  *
- * Uses Clutter.DesaturateEffect with ease_property() on the 'factor'
- * property (a plain double, safe across all GNOME 46-49 versions).
+ * Uses Clutter.DesaturateEffect.  The factor is set directly (not via
+ * ease_property) to avoid SIGSEGV on GNOME 46 where animating effect
+ * properties can crash the compositor.
  */
 
 import Clutter from 'gi://Clutter';
@@ -12,7 +13,6 @@ import {SignalManager} from '../util/signalManager.js';
 import {getWindowActors} from '../util/compat.js';
 
 const EFFECT_NAME = 'hypergnome-dim';
-const DIM_DURATION_MS = 200;
 
 export class EffectsManager {
     /**
@@ -37,21 +37,7 @@ export class EffectsManager {
 
     disable() {
         this._signals.destroy();
-
-        // Remove dim effects from ALL window actors
-        try {
-            const actors = getWindowActors();
-            for (const actor of actors) {
-                try {
-                    actor.remove_effect_by_name(EFFECT_NAME);
-                } catch (_e) {
-                    // Effect may not exist on this actor
-                }
-            }
-        } catch (_e) {
-            // getWindowActors may fail during shutdown
-        }
-
+        this._removeAllEffects();
         this._settings = null;
     }
 
@@ -71,9 +57,15 @@ export class EffectsManager {
                         continue;
 
                     if (metaWin === focusWin) {
-                        this._undimActor(actor);
+                        actor.remove_effect_by_name(EFFECT_NAME);
                     } else {
-                        this._dimActor(actor, strength);
+                        let effect = actor.get_effect(EFFECT_NAME);
+                        if (!effect) {
+                            effect = new Clutter.DesaturateEffect({factor: strength});
+                            actor.add_effect_with_name(EFFECT_NAME, effect);
+                        } else {
+                            effect.set_factor(strength);
+                        }
                     }
                 } catch (_e) {
                     // Individual actor failure shouldn't break the loop
@@ -84,54 +76,26 @@ export class EffectsManager {
         }
     }
 
-    _dimActor(actor, strength) {
-        let effect = actor.get_effect(EFFECT_NAME);
-        if (!effect) {
-            effect = new Clutter.DesaturateEffect({factor: 0.0});
-            actor.add_effect_with_name(EFFECT_NAME, effect);
-        }
-
-        actor.ease_property(`@effects.${EFFECT_NAME}.factor`, strength, {
-            duration: DIM_DURATION_MS,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
-    }
-
-    _undimActor(actor) {
-        const effect = actor.get_effect(EFFECT_NAME);
-        if (!effect)
-            return;
-
-        actor.ease_property(`@effects.${EFFECT_NAME}.factor`, 0.0, {
-            duration: DIM_DURATION_MS,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onStopped: () => {
-                try {
-                    actor.remove_effect_by_name(EFFECT_NAME);
-                } catch (_e) {
-                    // Actor may have been destroyed
-                }
-            },
-        });
-    }
-
     _onDimSettingChanged() {
         if (this._settings.get_boolean('dim-inactive')) {
             this._onFocusChanged();
         } else {
-            // Remove all dim effects
-            try {
-                const actors = getWindowActors();
-                for (const actor of actors) {
-                    try {
-                        this._undimActor(actor);
-                    } catch (_e) {
-                        // Ignore
-                    }
+            this._removeAllEffects();
+        }
+    }
+
+    _removeAllEffects() {
+        try {
+            const actors = getWindowActors();
+            for (const actor of actors) {
+                try {
+                    actor.remove_effect_by_name(EFFECT_NAME);
+                } catch (_e) {
+                    // Effect may not exist on this actor
                 }
-            } catch (_e) {
-                // Ignore
             }
+        } catch (_e) {
+            // getWindowActors may fail during shutdown
         }
     }
 }

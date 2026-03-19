@@ -1,16 +1,20 @@
 /**
- * Manages window open/close animations by hooking into Shell.WM signals.
+ * Manages window open animations.
  *
- * Shell.WM emits 'map' when a window appears and 'destroy' when it's
- * removed.  Each handler MUST eventually call completed_map / completed_destroy
- * on the WindowManager or the shell will hang waiting for the animation to finish.
+ * Hooks into 'window-created' on the display and animates the window actor
+ * once it becomes visible (via 'first-frame' signal on the actor).
+ *
+ * Close animations are NOT supported because the only safe way is to
+ * override Shell.WM._destroyWindow, which would be monkey-patching.
  */
 
 import Meta from 'gi://Meta';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import Clutter from 'gi://Clutter';
 
 import {SignalManager} from '../util/signalManager.js';
-import {animateWindowOpen, animateWindowClose} from '../util/animator.js';
+
+const OPEN_DURATION_MS = 200;
+const OPEN_SCALE = 0.9;
 
 export class WindowAnimationManager {
     /**
@@ -19,78 +23,88 @@ export class WindowAnimationManager {
     constructor(settings) {
         this._settings = settings;
         this._signals = new SignalManager();
+        this._pendingActors = new Set();
     }
 
     enable() {
-        const wm = Main.wm;
-        this._shellWm = wm._shellwm;
-
-        this._signals.connect(this._shellWm, 'map',
-            (_s, actor) => this._onMap(actor));
-        this._signals.connect(this._shellWm, 'destroy',
-            (_s, actor) => this._onDestroy(actor));
+        this._signals.connect(global.display, 'window-created',
+            (_d, win) => this._onWindowCreated(win));
     }
 
     disable() {
         this._signals.destroy();
-        this._shellWm = null;
+
+        // Clean up any actors we're tracking
+        for (const actor of this._pendingActors) {
+            try {
+                actor.opacity = 255;
+                actor.set_scale(1, 1);
+                actor.set_pivot_point(0, 0);
+            } catch (_e) {
+                // Actor may have been destroyed
+            }
+        }
+        this._pendingActors.clear();
+
         this._settings = null;
     }
 
-    /**
-     * @param {Meta.WindowActor} actor
-     */
-    _onMap(actor) {
-        if (!this._settings.get_boolean('animation-enabled')) {
-            this._shellWm.completed_map(actor);
+    _onWindowCreated(win) {
+        if (!this._settings || !this._settings.get_boolean('animation-enabled'))
             return;
-        }
 
-        // Only animate normal windows (not tooltips, popups, etc.)
-        const win = actor.meta_window;
-        if (!win || win.get_window_type() !== Meta.WindowType.NORMAL) {
-            this._shellWm.completed_map(actor);
+        if (!win || win.get_window_type() !== Meta.WindowType.NORMAL)
             return;
-        }
 
-        try {
-            animateWindowOpen(actor, () => {
-                try {
-                    this._shellWm.completed_map(actor);
-                } catch (_e) {
-                    // Actor may have been destroyed during animation
-                }
-            });
-        } catch (_e) {
-            this._shellWm.completed_map(actor);
-        }
+        const actor = win.get_compositor_private();
+        if (!actor)
+            return;
+
+        // Wait for the actor's first frame to be drawn before animating
+        this._pendingActors.add(actor);
+        const sigId = actor.connect('first-frame', () => {
+            try {
+                actor.disconnect(sigId);
+            } catch (_e) {
+                // Already disconnected
+            }
+            this._pendingActors.delete(actor);
+            this._animateOpen(actor);
+        });
     }
 
-    /**
-     * @param {Meta.WindowActor} actor
-     */
-    _onDestroy(actor) {
-        if (!this._settings.get_boolean('animation-enabled')) {
-            this._shellWm.completed_destroy(actor);
-            return;
-        }
-
-        const win = actor.meta_window;
-        if (!win || win.get_window_type() !== Meta.WindowType.NORMAL) {
-            this._shellWm.completed_destroy(actor);
-            return;
-        }
-
+    _animateOpen(actor) {
         try {
-            animateWindowClose(actor, () => {
-                try {
-                    this._shellWm.completed_destroy(actor);
-                } catch (_e) {
-                    // Actor may have been destroyed
-                }
+            actor.remove_all_transitions();
+            actor.set_pivot_point(0.5, 0.5);
+            actor.set_scale(OPEN_SCALE, OPEN_SCALE);
+            actor.opacity = 0;
+
+            actor.ease({
+                scale_x: 1,
+                scale_y: 1,
+                opacity: 255,
+                duration: OPEN_DURATION_MS,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onStopped: () => {
+                    try {
+                        actor.set_scale(1, 1);
+                        actor.opacity = 255;
+                        actor.set_pivot_point(0, 0);
+                    } catch (_e) {
+                        // Actor may have been destroyed
+                    }
+                },
             });
         } catch (_e) {
-            this._shellWm.completed_destroy(actor);
+            // If animation fails, ensure actor is visible
+            try {
+                actor.opacity = 255;
+                actor.set_scale(1, 1);
+                actor.set_pivot_point(0, 0);
+            } catch (_e2) {
+                // Actor may have been destroyed
+            }
         }
     }
 }
