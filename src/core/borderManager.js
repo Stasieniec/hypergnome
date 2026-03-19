@@ -320,6 +320,7 @@ export class BorderManager {
         // First update geometry so border is in the right place
         this._updateGeometry();
 
+        // Pulse the border
         this._border.ease({
             scale_x: PULSE_SCALE,
             scale_y: PULSE_SCALE,
@@ -338,6 +339,44 @@ export class BorderManager {
                 }
             },
         });
+
+        // Pulse the window actor too
+        this._pulseWindowActor();
+    }
+
+    _pulseWindowActor() {
+        if (!this._focusWindow)
+            return;
+
+        const actor = this._focusWindow.get_compositor_private();
+        if (!actor)
+            return;
+
+        try {
+            actor.set_pivot_point(0.5, 0.5);
+            actor.remove_all_transitions();
+
+            actor.ease({
+                scale_x: PULSE_SCALE,
+                scale_y: PULSE_SCALE,
+                duration: PULSE_DURATION_MS,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
+                    try {
+                        actor.ease({
+                            scale_x: 1.0,
+                            scale_y: 1.0,
+                            duration: PULSE_SETTLE_MS,
+                            mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+                        });
+                    } catch (_e) {
+                        // Actor may be destroyed
+                    }
+                },
+            });
+        } catch (_e) {
+            // Window may have been destroyed
+        }
     }
 
     // =========================================================================
