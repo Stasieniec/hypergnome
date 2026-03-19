@@ -415,6 +415,7 @@ export class BorderManager {
         try {
             const rect = this._focusWindow.get_frame_rect();
             const bw = this._settings.get_int('active-border-size');
+            const dur = this._settings.get_int('animation-duration');
 
             if (this._isGradient) {
                 // For gradient mode, ease position/size directly
@@ -424,11 +425,11 @@ export class BorderManager {
                     y: rect.y - bw,
                     width: rect.width + bw * 2,
                     height: rect.height + bw * 2,
-                    duration: 200,
+                    duration: dur,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 });
             } else {
-                animateBorder(this._border, rect, bw);
+                animateBorder(this._border, rect, bw, dur);
             }
         } catch (_e) {
             // Window may have been destroyed

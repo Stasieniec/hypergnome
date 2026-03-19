@@ -106,6 +106,12 @@
       <description>Brief scale pulse on the border when focus changes</description>
     </key>
 
+    <key name="animation-duration" type="i">
+      <default>200</default>
+      <summary>Animation duration</summary>
+      <description>Duration of tiling and window animations in milliseconds (50 - 500)</description>
+    </key>
+
     <!-- Float exceptions -->
     <key name="float-list" type="as">
       <default>[]</default>

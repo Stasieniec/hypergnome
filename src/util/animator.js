@@ -17,9 +17,8 @@
 import Clutter from 'gi://Clutter';
 import Graphene from 'gi://Graphene';
 
-const ANIM_DURATION_MS = 200;
+const DEFAULT_DURATION_MS = 200;
 const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
-const WORKSPACE_SLIDE_DURATION_MS = 300;
 
 /**
  * Animate a window from its current position/size to a target rect.
@@ -27,8 +26,10 @@ const WORKSPACE_SLIDE_DURATION_MS = 300;
  * @param {Meta.Window} metaWindow
  * @param {{x: number, y: number, width: number, height: number}} targetRect
  *   Already rounded and clamped to >=1 dimensions.
+ * @param {number} [durationMs] - Animation duration in ms (default 200).
  */
-export function animateWindow(metaWindow, targetRect) {
+export function animateWindow(metaWindow, targetRect, durationMs) {
+    const duration = durationMs ?? DEFAULT_DURATION_MS;
     const actor = metaWindow.get_compositor_private();
     if (!actor)
         return;
@@ -98,7 +99,7 @@ export function animateWindow(metaWindow, targetRect) {
         y: newY - yShadow,
         width: newW + 2 * xShadow,
         height: newH + 2 * yShadow,
-        duration: ANIM_DURATION_MS,
+        duration,
         mode: ANIM_MODE,
         onStopped: () => {
             // 5. Restore the real actor and destroy the clone
@@ -127,8 +128,9 @@ export function animateWindow(metaWindow, targetRect) {
  * @param {{x: number, y: number, width: number, height: number}} frameRect
  *   The focused window's frame rect.
  * @param {number} borderWidth - Border thickness in pixels.
+ * @param {number} [durationMs] - Animation duration in ms (default 200).
  */
-export function animateBorder(border, frameRect, borderWidth) {
+export function animateBorder(border, frameRect, borderWidth, durationMs) {
     border.remove_all_transitions();
 
     border.ease({
@@ -136,7 +138,7 @@ export function animateBorder(border, frameRect, borderWidth) {
         y: frameRect.y - borderWidth,
         width: frameRect.width + borderWidth * 2,
         height: frameRect.height + borderWidth * 2,
-        duration: ANIM_DURATION_MS,
+        duration: durationMs ?? DEFAULT_DURATION_MS,
         mode: ANIM_MODE,
     });
 }
@@ -169,11 +171,14 @@ export function snapWindow(metaWindow, targetRect) {
  * @param {Meta.Window} metaWindow
  * @param {number} offsetX - Horizontal slide offset in pixels
  * @param {number} offsetY - Vertical slide offset in pixels
+ * @param {number} [durationMs] - Animation duration in ms (default 200).
  */
-export function animateSlideIn(metaWindow, offsetX, offsetY) {
+export function animateSlideIn(metaWindow, offsetX, offsetY, durationMs) {
     const actor = metaWindow.get_compositor_private();
     if (!actor)
         return;
+
+    const duration = Math.round((durationMs ?? DEFAULT_DURATION_MS) * 1.5);
 
     actor.remove_all_transitions();
     actor.translation_x = offsetX;
@@ -184,7 +189,7 @@ export function animateSlideIn(metaWindow, offsetX, offsetY) {
         translation_x: 0,
         translation_y: 0,
         opacity: 255,
-        duration: WORKSPACE_SLIDE_DURATION_MS,
+        duration,
         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
     });
 }
