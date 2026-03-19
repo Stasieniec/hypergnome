@@ -18,6 +18,7 @@ import St from 'gi://St';
 
 import {SignalManager} from '../util/signalManager.js';
 import {animateBorder} from '../util/animator.js';
+import {parseColor} from '../util/colorParser.js';
 
 const PULSE_SCALE = 1.04;
 const PULSE_DURATION_MS = 150;
@@ -191,8 +192,8 @@ export class BorderManager {
 
         const bw = this._settings.get_int('active-border-size');
         const radius = this._settings.get_int('active-border-radius');
-        const primary = this._parseColor(this._settings.get_string('active-border-color'));
-        const secondary = this._parseColor(this._settings.get_string('active-border-color-secondary'));
+        const primary = parseColor(this._settings.get_string('active-border-color'));
+        const secondary = parseColor(this._settings.get_string('active-border-color-secondary'));
 
         // Compute gradient endpoints from angle
         const angle = this._gradientAngle * Math.PI / 180;
@@ -228,46 +229,6 @@ export class BorderManager {
         cr.lineTo(x + r, y + h);
         cr.arc(x + r, y + h - r, r, 0.5 * Math.PI, Math.PI);
         cr.closePath();
-    }
-
-    _parseColor(str) {
-        const fallback = {r: 0.15, g: 0.64, b: 0.41, a: 1.0};
-        if (!str)
-            return fallback;
-
-        // rgb(r,g,b) or rgba(r,g,b,a)
-        const rgbMatch = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\)/);
-        if (rgbMatch) {
-            return {
-                r: parseInt(rgbMatch[1]) / 255,
-                g: parseInt(rgbMatch[2]) / 255,
-                b: parseInt(rgbMatch[3]) / 255,
-                a: rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : 1.0,
-            };
-        }
-
-        // #RRGGBB or #RGB
-        const hexMatch = str.match(/^#([0-9a-fA-F]{3,8})$/);
-        if (hexMatch) {
-            const hex = hexMatch[1];
-            if (hex.length === 3) {
-                return {
-                    r: parseInt(hex[0] + hex[0], 16) / 255,
-                    g: parseInt(hex[1] + hex[1], 16) / 255,
-                    b: parseInt(hex[2] + hex[2], 16) / 255,
-                    a: 1.0,
-                };
-            } else if (hex.length >= 6) {
-                return {
-                    r: parseInt(hex.substring(0, 2), 16) / 255,
-                    g: parseInt(hex.substring(2, 4), 16) / 255,
-                    b: parseInt(hex.substring(4, 6), 16) / 255,
-                    a: hex.length === 8 ? parseInt(hex.substring(6, 8), 16) / 255 : 1.0,
-                };
-            }
-        }
-
-        return fallback;
     }
 
     _invalidateCanvas() {
