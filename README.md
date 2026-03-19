@@ -4,31 +4,33 @@ Hyprland-style tiling window management for GNOME. Automatic dwindle (BSP tree) 
 
 ## Features
 
-- [x] Dwindle BSP tree auto-tiling with per-workspace, per-monitor trees
-- [x] Hyprland-style keybindings (vim-style focus/move/resize, toggle float/split, equalize)
-- [x] Tiled window resize via keybindings (`Super+Ctrl+Arrow`) and mouse drag
-- [x] Multi-monitor support (move/focus windows across monitors)
-- [x] Configurable inner/outer gaps
-- [x] Active window border highlight (color, width, radius)
-- [x] Smooth animations (Clone+Opacity Zero technique for window transitions, border easing)
-- [x] GNOME 46-49 compatibility (single codebase with compat shims)
-- [x] Panel indicator with tiling toggle
-- [x] Preferences window
-- [ ] Float exceptions UI (backend exists via `float-list` GSettings key)
-- [ ] Scratchpad (toggle-able overlay windows)
-- [ ] Shader effects and gradient borders
+- Dwindle BSP tree auto-tiling with per-workspace, per-monitor trees
+- Hyprland-style keybindings (vim keys and arrow keys for focus/move/resize)
+- Tiled window resize via keybindings and mouse drag
+- Multi-monitor support (move/focus windows across monitors)
+- Configurable inner/outer gaps
+- Active window border with animated gradient (blue-green default, rotating)
+- Focus pulse effect (window and border scale on focus change)
+- Dim inactive windows (configurable desaturation)
+- Smooth animations with configurable speed
+- Window open animations (scale + fade)
+- Workspace switch slide-in animation
+- Float exceptions with WM_CLASS list (editable in preferences)
+- GNOME 46-49 compatibility (single codebase with compat shims)
+- Panel indicator with tiling toggle
+- Full preferences window with color pickers, float list editor, and all settings exposed
 
 ## Default Keybindings
 
-| Key | Action |
-|-----|--------|
-| `Super+H/J/K/L` | Focus left/down/up/right |
-| `Super+Shift+H/J/K/L` | Move window left/down/up/right |
-| `Super+Ctrl+Arrow` | Resize window in direction |
-| `Super+V` | Toggle float |
-| `Super+P` | Toggle split direction |
-| `Super+E` | Equalize split ratios |
-| `Super+Q` | Close window |
+| Action | Vim Keys | Arrow Keys |
+|--------|----------|------------|
+| Focus | `Super+H/J/K/L` | `Super+Arrows` |
+| Move window | `Super+Shift+H/J/K/L` | `Super+Shift+Arrows` |
+| Resize window | `Super+Ctrl+H/J/K/L` | `Super+Ctrl+Arrows` |
+| Toggle float | `Super+V` | |
+| Toggle split direction | `Super+P` | |
+| Equalize splits | `Super+E` | |
+| Close window | `Super+Q` | |
 
 ## Requirements
 
