@@ -253,7 +253,6 @@ export class BorderManager {
     _stopTimeline() {
         if (this._timeline) {
             this._timeline.stop();
-            this._timeline.run_dispose();
             this._timeline = null;
         }
     }
