@@ -1,4 +1,5 @@
 import Adw from 'gi://Adw';
+import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
@@ -58,6 +59,30 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
         tilingGroup.add(splitRatioRow);
         settings.bind('split-ratio', splitRatioRow, 'value',
             Gio.SettingsBindFlags.DEFAULT);
+
+        const resizeStepRow = new Adw.SpinRow({
+            title: _('Resize Step'),
+            subtitle: _('How much to resize per keypress (0.01 - 0.25)'),
+            adjustment: new Gtk.Adjustment({
+                lower: 0.01,
+                upper: 0.25,
+                step_increment: 0.01,
+                page_increment: 0.05,
+            }),
+            digits: 2,
+        });
+        tilingGroup.add(resizeStepRow);
+        settings.bind('resize-step', resizeStepRow, 'value',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        // Float exceptions group
+        const floatGroup = new Adw.PreferencesGroup({
+            title: _('Float Exceptions'),
+            description: _('Windows matching these WM_CLASS values will always float'),
+        });
+        generalPage.add(floatGroup);
+
+        this._buildFloatList(floatGroup, settings);
 
         // -- Appearance Page --
         const appearancePage = new Adw.PreferencesPage({
@@ -134,34 +159,12 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
         settings.bind('active-border-radius', borderRadiusRow, 'value',
             Gio.SettingsBindFlags.DEFAULT);
 
-        const borderColorRow = new Adw.EntryRow({
-            title: _('Border Color'),
-            text: settings.get_string('active-border-color'),
-        });
-        borderGroup.add(borderColorRow);
-        borderColorRow.connect('changed', () => {
-            settings.set_string('active-border-color', borderColorRow.get_text());
-        });
-        settings.connect('changed::active-border-color', () => {
-            const current = settings.get_string('active-border-color');
-            if (borderColorRow.get_text() !== current)
-                borderColorRow.set_text(current);
-        });
-
-        const borderColorSecondaryRow = new Adw.EntryRow({
-            title: _('Secondary Color (gradient)'),
-            text: settings.get_string('active-border-color-secondary'),
-        });
-        borderGroup.add(borderColorSecondaryRow);
-        borderColorSecondaryRow.connect('changed', () => {
-            settings.set_string('active-border-color-secondary',
-                borderColorSecondaryRow.get_text());
-        });
-        settings.connect('changed::active-border-color-secondary', () => {
-            const current = settings.get_string('active-border-color-secondary');
-            if (borderColorSecondaryRow.get_text() !== current)
-                borderColorSecondaryRow.set_text(current);
-        });
+        // Color pickers
+        this._addColorRow(borderGroup, settings,
+            'active-border-color', _('Border Color'));
+        this._addColorRow(borderGroup, settings,
+            'active-border-color-secondary',
+            _('Secondary Color'), _('Empty for solid color'));
 
         const gradientAngleRow = new Adw.SpinRow({
             title: _('Gradient Angle'),
@@ -194,7 +197,7 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
 
         const focusPulseRow = new Adw.SwitchRow({
             title: _('Focus Pulse'),
-            subtitle: _('Brief scale pulse on the border when focus changes'),
+            subtitle: _('Brief scale pulse on window and border when focus changes'),
         });
         borderGroup.add(focusPulseRow);
         settings.bind('focus-pulse', focusPulseRow, 'active',
@@ -244,7 +247,141 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
         settings.bind('animation-enabled', animEnabledRow, 'active',
             Gio.SettingsBindFlags.DEFAULT);
 
+        const animDurationRow = new Adw.SpinRow({
+            title: _('Animation Duration'),
+            subtitle: _('Speed of animations in milliseconds (50 - 500)'),
+            adjustment: new Gtk.Adjustment({
+                lower: 50,
+                upper: 500,
+                step_increment: 25,
+                page_increment: 50,
+            }),
+        });
+        animGroup.add(animDurationRow);
+        settings.bind('animation-duration', animDurationRow, 'value',
+            Gio.SettingsBindFlags.DEFAULT);
+
         // Keep settings alive for the window lifetime
         window._settings = settings;
+    }
+
+    // =========================================================================
+    // Color picker helper
+    // =========================================================================
+
+    _addColorRow(group, settings, key, title, subtitle) {
+        const colorDialog = new Gtk.ColorDialog();
+        const rgba = new Gdk.RGBA();
+        const colorStr = settings.get_string(key);
+        if (!rgba.parse(colorStr))
+            rgba.parse('#2664d2');
+
+        const colorButton = new Gtk.ColorDialogButton({
+            dialog: colorDialog,
+            rgba,
+            valign: Gtk.Align.CENTER,
+        });
+
+        const row = new Adw.ActionRow({
+            title,
+            subtitle: subtitle ?? null,
+        });
+        row.add_suffix(colorButton);
+        row.activatable_widget = colorButton;
+        group.add(row);
+
+        // Sync button -> settings
+        colorButton.connect('notify::rgba', () => {
+            const c = colorButton.get_rgba();
+            const str = `rgb(${Math.round(c.red * 255)},${Math.round(c.green * 255)},${Math.round(c.blue * 255)})`;
+            if (settings.get_string(key) !== str)
+                settings.set_string(key, str);
+        });
+
+        // Sync settings -> button
+        settings.connect(`changed::${key}`, () => {
+            const current = settings.get_string(key);
+            const c = new Gdk.RGBA();
+            if (c.parse(current))
+                colorButton.set_rgba(c);
+        });
+    }
+
+    // =========================================================================
+    // Float list editor
+    // =========================================================================
+
+    _buildFloatList(group, settings) {
+        const listBox = new Gtk.ListBox({
+            selection_mode: Gtk.SelectionMode.NONE,
+            css_classes: ['boxed-list'],
+        });
+        group.add(listBox);
+
+        const refreshList = () => {
+            // Remove all children
+            let child = listBox.get_first_child();
+            while (child) {
+                const next = child.get_next_sibling();
+                listBox.remove(child);
+                child = next;
+            }
+
+            const entries = settings.get_strv('float-list');
+            for (const wmClass of entries) {
+                const row = new Adw.ActionRow({title: wmClass});
+                const removeBtn = new Gtk.Button({
+                    icon_name: 'list-remove-symbolic',
+                    valign: Gtk.Align.CENTER,
+                    css_classes: ['flat'],
+                });
+                removeBtn.connect('clicked', () => {
+                    const current = settings.get_strv('float-list');
+                    settings.set_strv('float-list',
+                        current.filter(c => c !== wmClass));
+                });
+                row.add_suffix(removeBtn);
+                listBox.append(row);
+            }
+
+            if (entries.length === 0) {
+                const emptyRow = new Adw.ActionRow({
+                    title: _('No exceptions'),
+                    subtitle: _('All normal windows will be tiled'),
+                });
+                listBox.append(emptyRow);
+            }
+        };
+
+        // Add entry + button
+        const addRow = new Adw.EntryRow({
+            title: _('WM_CLASS to add'),
+        });
+        group.add(addRow);
+
+        const addBtn = new Gtk.Button({
+            icon_name: 'list-add-symbolic',
+            valign: Gtk.Align.CENTER,
+            css_classes: ['flat'],
+        });
+        addRow.add_suffix(addBtn);
+
+        const doAdd = () => {
+            const text = addRow.get_text().trim();
+            if (!text)
+                return;
+            const current = settings.get_strv('float-list');
+            if (!current.includes(text)) {
+                current.push(text);
+                settings.set_strv('float-list', current);
+            }
+            addRow.set_text('');
+        };
+
+        addBtn.connect('clicked', doAdd);
+        addRow.connect('entry-activated', doAdd);
+
+        settings.connect('changed::float-list', refreshList);
+        refreshList();
     }
 }
