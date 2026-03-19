@@ -10,6 +10,7 @@ const SHELL_VERSION = parseInt(Shell.version);
 
 ### GNOME 46
 - `Clutter.Container` removed -- Use `Clutter.Actor.add_child()` / `remove_child()`
+- **`Clutter.Canvas` NOT available** -- Use `St.DrawingArea` with `repaint` signal, `get_context()`, `get_surface_size()`, and `queue_repaint()`
 - Signal names: `"actor-added"/"actor-removed"` -> `"child-added"/"child-removed"`
 - `St.Bin` no longer auto-expands per `Clutter.ActorAlign.FILL` -- needs explicit `x_expand`/`y_expand`
 - `St.Button` label defaults to plain text (not Pango markup)

@@ -3,8 +3,8 @@
  *
  * Two modes:
  * - Solid mode (default): St.Bin with CSS border — zero overhead.
- * - Gradient mode: Clutter.Actor + Clutter.Canvas with Cairo gradient
- *   painting.  Activated when active-border-color-secondary is non-empty
+ * - Gradient mode: St.DrawingArea with Cairo gradient painting.
+ *   Activated when active-border-color-secondary is non-empty
  *   and differs from the primary color.
  *
  * Features:
@@ -38,7 +38,6 @@ export class BorderManager {
 
         // Gradient mode state
         this._isGradient = false;
-        this._canvas = null;
         this._timeline = null;
         this._gradientAngle = 0;
     }
@@ -90,10 +89,6 @@ export class BorderManager {
         this._signals.destroy();
         this._focusWindow = null;
 
-        if (this._canvas) {
-            this._canvas = null;
-        }
-
         if (this._border) {
             global.window_group.remove_child(this._border);
             this._border.destroy();
@@ -115,7 +110,6 @@ export class BorderManager {
             global.window_group.remove_child(this._border);
             this._border.destroy();
             this._border = null;
-            this._canvas = null;
         }
         this._stopTimeline();
 
@@ -154,25 +148,21 @@ export class BorderManager {
     }
 
     _createGradientBorder() {
-        this._border = new Clutter.Actor({
+        this._border = new St.DrawingArea({
             reactive: false,
         });
         this._border.set_pivot_point(0.5, 0.5);
 
-        this._canvas = new Clutter.Canvas();
-        this._canvas.connect('draw', (_c, cr, width, height) => {
+        this._border.connect('repaint', (area) => {
             try {
+                const cr = area.get_context();
+                const [width, height] = area.get_surface_size();
                 this._paintGradient(cr, width, height);
+                cr.$dispose();
             } catch (_e) {
                 // Cairo errors shouldn't crash the shell
             }
-            return true;
         });
-        this._border.set_content(this._canvas);
-
-        // Repaint when size changes (during animation)
-        this._border.connect('notify::width', () => this._invalidateCanvas());
-        this._border.connect('notify::height', () => this._invalidateCanvas());
 
         this._gradientAngle = this._settings.get_int('active-border-gradient-angle');
     }
@@ -232,14 +222,9 @@ export class BorderManager {
     }
 
     _invalidateCanvas() {
-        if (!this._canvas || !this._border)
+        if (!this._border || !this._isGradient)
             return;
-        const w = Math.round(this._border.width);
-        const h = Math.round(this._border.height);
-        if (w > 0 && h > 0) {
-            this._canvas.set_size(w, h);
-            this._canvas.invalidate();
-        }
+        this._border.queue_repaint();
     }
 
     // =========================================================================
