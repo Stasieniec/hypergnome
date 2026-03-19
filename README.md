@@ -2,6 +2,29 @@
 
 Hyprland-style tiling window management for GNOME. Automatic dwindle (BSP tree) tiling, smooth animations, configurable gaps, active window borders, and Hyprland-style keybindings — all as a native GNOME Shell extension.
 
+## Why HyperGnome Exists
+
+HyperGnome started from a very specific frustration: Ubuntu is still the desktop I actually want to use day to day. It has the ease of use, community support, and laptop driver support that make it pleasant to live with. But after getting used to tiling workflows, the existing GNOME extensions never quite felt right. Some were too manual, some felt like a thin layer on top of stock GNOME behavior, and some felt like I was constantly fighting the system instead of flowing with it.
+
+I also tried switching fully to Hyprland. The tiling model and feel were much closer to what I wanted, but the overall experience on Ubuntu was clearly worse than just staying on GNOME. So HyperGnome is the result: a tiling extension built mainly for my own needs, trying to keep Ubuntu and GNOME's strengths while bringing back the parts of Hyprland I missed most.
+
+## Why Use It Instead Of Other GNOME Tiling Extensions?
+
+HyperGnome is for people who want automatic, opinionated, Hyprland-style tiling without giving up GNOME or Ubuntu.
+
+- Use `HyperGnome` if you want real auto-tiling with a dwindle/BSP tree instead of manually placing windows into zones.
+- Use `HyperGnome` if you want a more cohesive tiling workflow than "mostly stock GNOME, plus a few tiling helpers."
+- Use `HyperGnome` if you want visual polish such as animated tiling, active borders, focus pulse, and inactive-window effects.
+- Use `HyperGnome` if you want something designed to work with GNOME rather than feeling like a constant fight against it.
+
+In that sense:
+
+- `Tiling Shell` and `gTile` are great if you prefer manual zone-based layouts. `HyperGnome` is for users who want the layout to happen automatically.
+- `Tiling Assistant` is great if you want a conservative extension that stays close to stock GNOME. `HyperGnome` is for users who want a stronger tiling-first workflow.
+- `PaperWM` is great if you like its unique scrolling workspace model. `HyperGnome` is for users who want classic split-based tiling closer to Hyprland.
+
+HyperGnome is not trying to replace every tiling workflow on GNOME. It is specifically for the case where you like GNOME and Ubuntu, but you want your windows to behave more like a real tiling window manager.
+
 ## Features
 
 - Dwindle BSP tree auto-tiling with per-workspace, per-monitor trees
