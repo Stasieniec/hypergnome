@@ -3,12 +3,32 @@ import Meta from 'gi://Meta';
 
 export const SHELL_VERSION = parseInt(Shell.version);
 
+// Feature detection: GNOME 49 replaced get_maximized() with is_maximized()
+// and removed the flags parameter from maximize()/unmaximize().
+// We check the prototype chain via GObject introspection, falling back to
+// version number comparison if the prototype check is inconclusive.
+const _hasNewMaximizeAPI = (() => {
+    try {
+        // GJS exposes GObject methods on the prototype of the wrapper class.
+        // On GNOME 49+, Meta.Window.prototype has is_maximized but not
+        // get_maximized. Checking both avoids false positives.
+        const proto = Meta.Window.prototype;
+        if (typeof proto.is_maximized === 'function')
+            return true;
+        if (typeof proto.get_maximized === 'function')
+            return false;
+    } catch (_e) {
+        // Prototype introspection failed — fall through to version check
+    }
+    return SHELL_VERSION >= 49;
+})();
+
 /**
  * Maximize a window (GNOME 49 removed the flags parameter).
  * @param {Meta.Window} win
  */
 export function maximizeWindow(win) {
-    if (SHELL_VERSION >= 49)
+    if (_hasNewMaximizeAPI)
         win.maximize();
     else
         win.maximize(Meta.MaximizeFlags.BOTH);
@@ -19,7 +39,7 @@ export function maximizeWindow(win) {
  * @param {Meta.Window} win
  */
 export function unmaximizeWindow(win) {
-    if (SHELL_VERSION >= 49)
+    if (_hasNewMaximizeAPI)
         win.unmaximize();
     else
         win.unmaximize(Meta.MaximizeFlags.BOTH);
@@ -31,7 +51,7 @@ export function unmaximizeWindow(win) {
  * @returns {boolean}
  */
 export function isMaximized(win) {
-    if (SHELL_VERSION >= 49)
+    if (_hasNewMaximizeAPI)
         return win.is_maximized();
     else
         return win.get_maximized() === Meta.MaximizeFlags.BOTH;
@@ -45,7 +65,7 @@ export function isMaximized(win) {
  * @returns {boolean}
  */
 export function isConstrained(win) {
-    if (SHELL_VERSION >= 49)
+    if (_hasNewMaximizeAPI)
         return win.is_maximized();
     else
         return win.get_maximized() !== Meta.MaximizeFlags.NONE;
