@@ -21,3 +21,7 @@ node_modules/
 
 # Logs
 *.log
+
+# Test VM artifacts (ISOs, disk images)
+test-vm/iso/
+test-vm/disks/
