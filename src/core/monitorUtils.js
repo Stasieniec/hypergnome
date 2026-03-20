@@ -114,16 +114,16 @@ export function moveWindowToMonitor(metaWindow, direction, ctx) {
 
     targetTree.insert(metaWindow, null, defaultRatio, nodeRect);
 
-    // Move using move_resize_frame — more reliable than move_to_monitor
-    // because it forces an immediate coordinate change that Mutter respects.
+    // Move using move_frame + move_resize_frame — more reliable than
+    // move_to_monitor because it forces an immediate coordinate change.
+    // user_op=true avoids work area clamping on multi-monitor setups.
     ctx.setMovingWindow(metaWindow);
-    metaWindow.move_resize_frame(
-        false,
-        Math.round(workArea.x + workArea.width / 4),
-        Math.round(workArea.y + workArea.height / 4),
-        Math.round(workArea.width / 2),
-        Math.round(workArea.height / 2),
-    );
+    const tempX = Math.round(workArea.x + workArea.width / 4);
+    const tempY = Math.round(workArea.y + workArea.height / 4);
+    const tempW = Math.round(workArea.width / 2);
+    const tempH = Math.round(workArea.height / 2);
+    metaWindow.move_frame(true, tempX, tempY);
+    metaWindow.move_resize_frame(true, tempX, tempY, tempW, tempH);
     ctx.setMovingWindow(null);
 
     // Re-layout both monitors

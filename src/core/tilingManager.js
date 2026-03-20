@@ -125,9 +125,12 @@ export class TilingManager {
         // Disconnect global signals
         this._signals.destroy();
 
-        // Destroy all trees
-        for (const [_key, tree] of this._trees)
+        // Clean up tiledRect from all managed windows, then destroy trees
+        for (const [_key, tree] of this._trees) {
+            for (const win of tree.getWindows())
+                delete win._hypergnomeTiledRect;
             tree.destroy();
+        }
         this._trees.clear();
 
         // Clear remaining state
@@ -218,6 +221,7 @@ export class TilingManager {
             const tree = this._findTreeContaining(focused);
             if (tree) {
                 tree.remove(focused);
+                delete focused._hypergnomeTiledRect;
                 this._floatingWindows.add(focused);
                 this._queueRelayout();
             } else {
@@ -474,6 +478,11 @@ export class TilingManager {
     _onTilingEnabledChanged() {
         const enabled = this._settings.get_boolean('tiling-enabled');
         if (!enabled) {
+            // Clean up tiledRect from all managed windows
+            for (const [_key, tree] of this._trees) {
+                for (const win of tree.getWindows())
+                    delete win._hypergnomeTiledRect;
+            }
             // Disconnect per-window signals, destroy trees
             for (const [win, _sigs] of this._windowSignals)
                 this._disconnectWindowSignals(win);
@@ -494,6 +503,7 @@ export class TilingManager {
             for (const win of windows) {
                 if (!shouldTile(win, floatList)) {
                     tree.remove(win);
+                    delete win._hypergnomeTiledRect;
                     this._disconnectWindowSignals(win);
                 }
             }
@@ -507,6 +517,7 @@ export class TilingManager {
         this._disconnectWindowSignals(metaWindow);
         this._cleanupPending(metaWindow);
         this._floatingWindows.delete(metaWindow);
+        delete metaWindow._hypergnomeTiledRect;
 
         const tree = this._findTreeContaining(metaWindow);
         if (tree) {
@@ -522,8 +533,10 @@ export class TilingManager {
 
         // Remove from whichever tree currently contains it
         const oldTree = this._findTreeContaining(metaWindow);
-        if (oldTree)
+        if (oldTree) {
             oldTree.remove(metaWindow);
+            delete metaWindow._hypergnomeTiledRect;
+        }
 
         // Insert into new tree
         if (!this._isTilingActive())
@@ -560,6 +573,7 @@ export class TilingManager {
             const tree = this._findTreeContaining(metaWindow);
             if (tree) {
                 tree.remove(metaWindow);
+                delete metaWindow._hypergnomeTiledRect;
                 this._queueRelayout();
             }
         } else {
@@ -574,6 +588,7 @@ export class TilingManager {
             const tree = this._findTreeContaining(metaWindow);
             if (tree) {
                 tree.remove(metaWindow);
+                delete metaWindow._hypergnomeTiledRect;
                 this._queueRelayout();
             }
         } else {
@@ -657,8 +672,6 @@ export class TilingManager {
         const outerGap = this._settings.get_int('outer-gap');
         const rects = computeLayout(tree.root, workArea, innerGap, outerGap);
 
-        let needsDeferredPass = false;
-
         for (const [metaWindow, rect] of rects) {
             try {
                 if (metaWindow.minimized || metaWindow.is_fullscreen())
@@ -675,10 +688,15 @@ export class TilingManager {
                 // Clear any maximize/tile constraint (full, half, or quarter).
                 // GNOME's native tiling sets MaximizeFlags that prevent
                 // move_resize_frame from working correctly.
-                if (isConstrained(metaWindow)) {
+                if (isConstrained(metaWindow))
                     unmaximizeWindow(metaWindow);
-                    needsDeferredPass = true;
-                }
+
+                // Store intended rect on the window. Apps with size
+                // constraints (e.g. terminals with character-grid
+                // increments) may not achieve the exact target size.
+                // We use the intended rect for all layout calculations
+                // so that constraint-induced gaps don't cascade.
+                metaWindow._hypergnomeTiledRect = targetRect;
 
                 // animateWindow captures old rect, calls move_resize_frame,
                 // then animates the actor from old to new position.
@@ -689,10 +707,12 @@ export class TilingManager {
             }
         }
 
-        // Deferred pass: re-apply without animation after an idle tick
-        // so that any unmaximize operations have settled.
-        if (needsDeferredPass)
-            this._scheduleDeferredLayout(wsIndex, monIndex);
+        // Always schedule a deferred correction pass. This catches:
+        // 1. Windows whose move_resize_frame was overridden by concurrent unmaximize
+        // 2. Windows that didn't achieve target size due to size hint constraints
+        //    (e.g. terminals snapping to character grid)
+        // 3. Race conditions with window actor readiness
+        this._scheduleDeferredLayout(wsIndex, monIndex);
     }
 
     /**
@@ -729,6 +749,7 @@ export class TilingManager {
                             width: Math.max(1, Math.round(rect.width)),
                             height: Math.max(1, Math.round(rect.height)),
                         };
+                        metaWindow._hypergnomeTiledRect = targetRect;
                         snapWindow(metaWindow, targetRect);
                     } catch (_e) {}
                 }
@@ -763,9 +784,10 @@ export class TilingManager {
         const innerGap = this._settings.get_int('inner-gap');
         const outerGap = this._settings.get_int('outer-gap');
 
-        // Get the expected tiled rect for this window
-        const rects = computeLayout(tree.root, workArea, innerGap, outerGap);
-        const expectedRect = rects.get(metaWindow);
+        // Use the stored intended rect if available (more accurate for
+        // constraint-warped windows), otherwise fall back to computation.
+        const expectedRect = metaWindow._hypergnomeTiledRect
+            ?? computeLayout(tree.root, workArea, innerGap, outerGap).get(metaWindow);
         if (!expectedRect)
             return;
 
