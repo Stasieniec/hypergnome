@@ -64,6 +64,22 @@ export class KeybindingManager {
         this._overrideBinding('unmaximize', () => {
             this._tilingManager.focusDirection('down');
         });
+
+        // Super+Shift+Arrow is GNOME move-to-monitor — conflicts with our
+        // tile-move-* bindings.  Route through moveDirection() which checks
+        // for same-monitor neighbors first, then falls back to cross-monitor.
+        this._overrideBinding('move-to-monitor-left', () => {
+            this._tilingManager.moveDirection('left');
+        });
+        this._overrideBinding('move-to-monitor-right', () => {
+            this._tilingManager.moveDirection('right');
+        });
+        this._overrideBinding('move-to-monitor-up', () => {
+            this._tilingManager.moveDirection('up');
+        });
+        this._overrideBinding('move-to-monitor-down', () => {
+            this._tilingManager.moveDirection('down');
+        });
     }
 
     disable() {
