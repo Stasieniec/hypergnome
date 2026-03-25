@@ -127,8 +127,10 @@ export class TilingManager {
 
         // Clean up tiledRect from all managed windows, then destroy trees
         for (const [_key, tree] of this._trees) {
-            for (const win of tree.getWindows())
+            for (const win of tree.getWindows()) {
                 delete win._hypergnomeTiledRect;
+                delete win._hypergnomePreTileRect;
+            }
             tree.destroy();
         }
         this._trees.clear();
@@ -215,6 +217,7 @@ export class TilingManager {
 
         if (this._floatingWindows.has(focused)) {
             this._floatingWindows.delete(focused);
+            delete focused._hypergnomePreTileRect;
             if (this._isTilingActive())
                 this._insertWindow(focused);
         } else {
@@ -224,6 +227,21 @@ export class TilingManager {
                 delete focused._hypergnomeTiledRect;
                 this._floatingWindows.add(focused);
                 this._queueRelayout();
+
+                // Restore pre-tile geometry so the window returns to its
+                // original size (important for PiP and other small windows)
+                const preRect = focused._hypergnomePreTileRect;
+                if (preRect) {
+                    try {
+                        focused.move_resize_frame(
+                            false, preRect.x, preRect.y,
+                            preRect.width, preRect.height);
+                    } catch (_e) {}
+                }
+
+                // Raise above tiled windows so the floated window doesn't
+                // get covered by remaining windows expanding to fill the gap
+                try { focused.raise(); } catch (_e) {}
             } else {
                 // Not in any tree — just mark as floating
                 this._floatingWindows.add(focused);
@@ -480,8 +498,10 @@ export class TilingManager {
         if (!enabled) {
             // Clean up tiledRect from all managed windows
             for (const [_key, tree] of this._trees) {
-                for (const win of tree.getWindows())
+                for (const win of tree.getWindows()) {
                     delete win._hypergnomeTiledRect;
+                    delete win._hypergnomePreTileRect;
+                }
             }
             // Disconnect per-window signals, destroy trees
             for (const [win, _sigs] of this._windowSignals)
@@ -504,6 +524,7 @@ export class TilingManager {
                 if (!shouldTile(win, floatList)) {
                     tree.remove(win);
                     delete win._hypergnomeTiledRect;
+                    delete win._hypergnomePreTileRect;
                     this._disconnectWindowSignals(win);
                 }
             }
@@ -518,6 +539,7 @@ export class TilingManager {
         this._cleanupPending(metaWindow);
         this._floatingWindows.delete(metaWindow);
         delete metaWindow._hypergnomeTiledRect;
+        delete metaWindow._hypergnomePreTileRect;
 
         const tree = this._findTreeContaining(metaWindow);
         if (tree) {
@@ -626,6 +648,18 @@ export class TilingManager {
 
         if (tree.contains(metaWindow))
             return;
+
+        // Save pre-tile geometry so toggleFloat can restore it later.
+        // Only save on first tile — not when re-inserting from minimize/fullscreen.
+        if (!metaWindow._hypergnomePreTileRect) {
+            try {
+                const frameRect = metaWindow.get_frame_rect();
+                metaWindow._hypergnomePreTileRect = {
+                    x: frameRect.x, y: frameRect.y,
+                    width: frameRect.width, height: frameRect.height,
+                };
+            } catch (_e) {}
+        }
 
         // Unmaximize if maximized — we manage tiling
         if (isMaximized(metaWindow))
