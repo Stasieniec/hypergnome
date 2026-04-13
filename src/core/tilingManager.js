@@ -53,10 +53,6 @@ export class TilingManager {
         this._signals.connect(display, 'window-created',
             (_d, win) => this._onWindowCreated(win));
 
-        // Focus tracking
-        this._signals.connect(display, 'notify::focus-window',
-            () => this._onFocusChanged());
-
         // Grab operations (user drag/resize)
         this._signals.connect(display, 'grab-op-begin',
             (_d, win, op) => this._onGrabBegin(win, op));
@@ -380,11 +376,6 @@ export class TilingManager {
         });
 
         this._pendingWindows.set(metaWindow, {actorSignalId, idleSourceId: null, actor});
-    }
-
-    _onFocusChanged() {
-        // Focus tracking is implicit — we read focus at action time.
-        // This handler exists as a hook for future features (e.g. active border).
     }
 
     _onGrabBegin(_metaWindow, _grabOp) {
