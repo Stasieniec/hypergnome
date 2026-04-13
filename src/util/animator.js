@@ -40,15 +40,13 @@ export function animateWindow(metaWindow, targetRect, durationMs) {
     const newW = targetRect.width;
     const newH = targetRect.height;
 
-    // Skip if nothing changed
+    // Already at target — no compositor work needed.
     if (oldRect.x === newX && oldRect.y === newY &&
-        oldRect.width === newW && oldRect.height === newH) {
-        metaWindow.move_frame(true, newX, newY);
-        metaWindow.move_resize_frame(true, newX, newY, newW, newH);
+        oldRect.width === newW && oldRect.height === newH)
         return;
-    }
 
-    // Skip animation for trivially small changes (< 2px)
+    // Skip animation for trivially small changes (< 2px) — but still issue
+    // the move so the window snaps to the rounded coordinates.
     const dx = Math.abs(oldRect.x - newX);
     const dy = Math.abs(oldRect.y - newY);
     const dw = Math.abs(oldRect.width - newW);
