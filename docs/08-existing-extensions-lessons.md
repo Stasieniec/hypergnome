@@ -112,6 +112,37 @@ Every window state change MUST update the overlay:
 Even System76 with full-time engineers couldn't sustain a GNOME tiling extension.
 Our defense: minimize internal dependencies, perfect cleanup, compat module.
 
+### Maximize/Fullscreen Signals: Re-entrancy Hazard
+**Never** synchronously call `_applyLayout()` (or anything that calls
+`win.unmaximize()` / `win.move_resize_frame()`) from inside a Mutter
+state-change signal handler — `notify::maximized-horizontally`,
+`notify::maximized-vertically`, `notify::fullscreen`, or `size-changed`.
+
+Why it's dangerous:
+- `unmaximize()` synchronously fires `notify::maximized-*` again.
+- Apps that fight the compositor (Vivaldi/Chromium re-maximize themselves)
+  turn this into an infinite loop that crashes gnome-shell.
+- PaperWM's tiling.js explicitly calls this out (issue #73): "Resizing
+  from within a size-changed signal is trouble." They use a `_inLayout`
+  recursion guard plus `queueLayout()` (async) instead of synchronous
+  layout calls.
+
+How other extensions defend:
+| Extension  | Pattern                                                    |
+|------------|------------------------------------------------------------|
+| PaperWM    | `_inLayout` recursion guard + async `queueLayout()`        |
+| Pop Shell  | Per-window `Tags.Blocked` flag + global `size_changed_block` via `GObject.signal_handler_block` |
+| Forge      | Global `_freezeRender` flag during grab ops                |
+
+HyperGnome's pattern:
+- `_inLayout` recursion guard inside `_applyLayout` (PaperWM).
+- Fullscreen-exit uses `_queueRelayout()` (200ms debounced) to give
+  Mutter time to settle before we touch geometry.
+- We deliberately do NOT connect `notify::maximized-*` per-window.
+  Maximize state is reconciled lazily — the next relayout (focus change,
+  workspace switch, fullscreen exit, etc.) calls `unmaximize()` if the
+  window ended up constrained.
+
 ## Recommended Code Structure
 
 ```

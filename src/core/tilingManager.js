@@ -33,6 +33,10 @@ export class TilingManager {
         this._debounceSourceId = null;
         this._deferredLayoutSources = new Set(); // Idle source IDs for deferred layout
         this._movingWindow = null;          // Guard for cross-monitor moves
+        this._inLayout = false;             // Recursion guard for _applyLayout
+                                            // (PaperWM #73 pattern — never call
+                                            // move_resize_frame() synchronously
+                                            // from a Mutter signal callback)
         this._enabled = false;
     }
 
@@ -606,18 +610,27 @@ export class TilingManager {
     }
 
     _onWindowFullscreenChanged(metaWindow) {
-        if (metaWindow.is_fullscreen()) {
-            const tree = this._findTreeContaining(metaWindow);
-            if (tree) {
-                tree.remove(metaWindow);
-                delete metaWindow._hypergnomeTiledRect;
-                this._queueRelayout();
-            }
-        } else {
-            // Exited fullscreen — re-insert
-            if (this._isTilingActive())
-                this._insertWindow(metaWindow);
-        }
+        // Keep the window in the tree across fullscreen transitions so its
+        // tree position (and the surrounding layout) is preserved exactly.
+        // _applyLayout already skips fullscreen windows, so other tiles stay
+        // put while fullscreen is active.  On exit we queue a relayout to
+        // snap the (now non-fullscreen) window back to its tiled rect.
+        //
+        // This fixes "fullscreening a YouTube video and exiting breaks
+        // tiling": previously we removed and re-inserted the window, which
+        // shuffled the tree topology and dropped the window at the default
+        // insertion point on exit (#5).
+        //
+        // We use _queueRelayout (debounced 200ms) instead of _applyLayout
+        // so we don't call move_resize_frame() while Mutter is still
+        // processing the fullscreen state transition (PaperWM #73).
+        if (!this._isTilingActive())
+            return;
+        if (!this._findTreeContaining(metaWindow))
+            return;
+        if (metaWindow.is_fullscreen())
+            return;  // Entering fullscreen — nothing to do, it covers everything.
+        this._queueRelayout();
     }
 
     // =========================================================================
@@ -693,6 +706,15 @@ export class TilingManager {
      * @param {number} monIndex
      */
     _applyLayout(wsIndex, monIndex) {
+        // Recursion guard.  unmaximizeWindow() below synchronously fires
+        // notify::maximized-* on the window — if any code path connects
+        // that signal back to _applyLayout (or a relayout), we'd recurse
+        // until the stack blows.  Apps that fight the compositor (Vivaldi
+        // / Chromium re-maximize themselves) make this acutely dangerous.
+        // PaperWM uses the same pattern (#73).
+        if (this._inLayout)
+            return;
+
         const tree = this._getTree(wsIndex, monIndex);
         if (tree.isEmpty())
             return;
@@ -701,44 +723,49 @@ export class TilingManager {
         if (!ws)
             return;
 
-        const workArea = ws.get_work_area_for_monitor(monIndex);
-        const innerGap = this._settings.get_int('inner-gap');
-        const outerGap = this._settings.get_int('outer-gap');
-        const rects = computeLayout(tree.root, workArea, innerGap, outerGap);
+        this._inLayout = true;
+        try {
+            const workArea = ws.get_work_area_for_monitor(monIndex);
+            const innerGap = this._settings.get_int('inner-gap');
+            const outerGap = this._settings.get_int('outer-gap');
+            const rects = computeLayout(tree.root, workArea, innerGap, outerGap);
 
-        for (const [metaWindow, rect] of rects) {
-            try {
-                if (metaWindow.minimized || metaWindow.is_fullscreen())
-                    continue;
+            for (const [metaWindow, rect] of rects) {
+                try {
+                    if (metaWindow.minimized || metaWindow.is_fullscreen())
+                        continue;
 
-                // Guard against zero/negative dimensions from gap math
-                const targetRect = {
-                    x: Math.round(rect.x),
-                    y: Math.round(rect.y),
-                    width: Math.max(1, Math.round(rect.width)),
-                    height: Math.max(1, Math.round(rect.height)),
-                };
+                    // Guard against zero/negative dimensions from gap math
+                    const targetRect = {
+                        x: Math.round(rect.x),
+                        y: Math.round(rect.y),
+                        width: Math.max(1, Math.round(rect.width)),
+                        height: Math.max(1, Math.round(rect.height)),
+                    };
 
-                // Clear any maximize/tile constraint (full, half, or quarter).
-                // GNOME's native tiling sets MaximizeFlags that prevent
-                // move_resize_frame from working correctly.
-                if (isConstrained(metaWindow))
-                    unmaximizeWindow(metaWindow);
+                    // Clear any maximize/tile constraint (full, half, or quarter).
+                    // GNOME's native tiling sets MaximizeFlags that prevent
+                    // move_resize_frame from working correctly.
+                    if (isConstrained(metaWindow))
+                        unmaximizeWindow(metaWindow);
 
-                // Store intended rect on the window. Apps with size
-                // constraints (e.g. terminals with character-grid
-                // increments) may not achieve the exact target size.
-                // We use the intended rect for all layout calculations
-                // so that constraint-induced gaps don't cascade.
-                metaWindow._hypergnomeTiledRect = targetRect;
+                    // Store intended rect on the window. Apps with size
+                    // constraints (e.g. terminals with character-grid
+                    // increments) may not achieve the exact target size.
+                    // We use the intended rect for all layout calculations
+                    // so that constraint-induced gaps don't cascade.
+                    metaWindow._hypergnomeTiledRect = targetRect;
 
-                // animateWindow captures old rect, calls move_resize_frame,
-                // then animates the actor from old to new position.
-                animateWindow(metaWindow, targetRect,
-                    this._settings.get_int('animation-duration'));
-            } catch (_e) {
-                // Window may have been destroyed between layout calc and apply
+                    // animateWindow captures old rect, calls move_resize_frame,
+                    // then animates the actor from old to new position.
+                    animateWindow(metaWindow, targetRect,
+                        this._settings.get_int('animation-duration'));
+                } catch (_e) {
+                    // Window may have been destroyed between layout calc and apply
+                }
             }
+        } finally {
+            this._inLayout = false;
         }
 
         // Always schedule a deferred correction pass. This catches:
@@ -1117,6 +1144,14 @@ export class TilingManager {
                 catch (e) { logError(e, 'HyperGnome: fullscreen'); }
             }),
         });
+
+        // NOTE: Do NOT listen to notify::maximized-horizontally /
+        // notify::maximized-vertically.  Calling unmaximizeWindow() from
+        // such a handler creates a feedback loop with apps that re-maximize
+        // themselves (Vivaldi/Chromium do this aggressively), which crashed
+        // gnome-shell during testing.  _applyLayout already unmaximizes
+        // constrained windows whenever it runs, so any subsequent relayout
+        // (focus change, workspace change, etc.) restores the tile.
 
         this._windowSignals.set(metaWindow, sigs);
     }
