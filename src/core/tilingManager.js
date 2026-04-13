@@ -28,7 +28,7 @@ export class TilingManager {
         this._trees = new Map();             // "wsIndex:monIndex" -> Tree
         this._floatingWindows = new Set();   // Manually floated windows
         this._signals = new SignalManager(); // Global signal connections
-        this._windowSignals = new Map();     // Meta.Window -> [{obj, id}]
+        this._windowSignals = new Map();     // Meta.Window -> SignalManager
         this._pendingWindows = new Map();    // Meta.Window -> {actorSignalId, idleSourceId, actor}
         this._debounceSourceId = null;
         this._deferredLayoutSources = new Set(); // Idle source IDs for deferred layout
@@ -115,11 +115,8 @@ export class TilingManager {
         this._pendingWindows.clear();
 
         // Disconnect per-window signals
-        for (const [_win, sigs] of this._windowSignals) {
-            for (const {obj, id} of sigs) {
-                try { obj.disconnect(id); } catch (_e) {}
-            }
-        }
+        for (const [_win, mgr] of this._windowSignals)
+            mgr.destroy();
         this._windowSignals.clear();
 
         // Disconnect global signals
@@ -1102,39 +1099,20 @@ export class TilingManager {
         if (this._windowSignals.has(metaWindow))
             return;
 
-        const sigs = [];
+        const mgr = new SignalManager();
+        const wrap = (label, fn) => () => {
+            try { fn(); }
+            catch (e) { logError(e, `HyperGnome: ${label}`); }
+        };
 
-        sigs.push({
-            obj: metaWindow,
-            id: metaWindow.connect('unmanaging', () => {
-                try { this._onWindowUnmanaging(metaWindow); }
-                catch (e) { logError(e, 'HyperGnome: unmanaging'); }
-            }),
-        });
-
-        sigs.push({
-            obj: metaWindow,
-            id: metaWindow.connect('workspace-changed', () => {
-                try { this._onWindowWorkspaceChanged(metaWindow); }
-                catch (e) { logError(e, 'HyperGnome: workspace-changed'); }
-            }),
-        });
-
-        sigs.push({
-            obj: metaWindow,
-            id: metaWindow.connect('notify::minimized', () => {
-                try { this._onWindowMinimizedChanged(metaWindow); }
-                catch (e) { logError(e, 'HyperGnome: minimized'); }
-            }),
-        });
-
-        sigs.push({
-            obj: metaWindow,
-            id: metaWindow.connect('notify::fullscreen', () => {
-                try { this._onWindowFullscreenChanged(metaWindow); }
-                catch (e) { logError(e, 'HyperGnome: fullscreen'); }
-            }),
-        });
+        mgr.connect(metaWindow, 'unmanaging',
+            wrap('unmanaging', () => this._onWindowUnmanaging(metaWindow)));
+        mgr.connect(metaWindow, 'workspace-changed',
+            wrap('workspace-changed', () => this._onWindowWorkspaceChanged(metaWindow)));
+        mgr.connect(metaWindow, 'notify::minimized',
+            wrap('minimized', () => this._onWindowMinimizedChanged(metaWindow)));
+        mgr.connect(metaWindow, 'notify::fullscreen',
+            wrap('fullscreen', () => this._onWindowFullscreenChanged(metaWindow)));
 
         // NOTE: Do NOT listen to notify::maximized-horizontally /
         // notify::maximized-vertically.  Calling unmaximizeWindow() from
@@ -1144,16 +1122,14 @@ export class TilingManager {
         // constrained windows whenever it runs, so any subsequent relayout
         // (focus change, workspace change, etc.) restores the tile.
 
-        this._windowSignals.set(metaWindow, sigs);
+        this._windowSignals.set(metaWindow, mgr);
     }
 
     _disconnectWindowSignals(metaWindow) {
-        const sigs = this._windowSignals.get(metaWindow);
-        if (!sigs)
+        const mgr = this._windowSignals.get(metaWindow);
+        if (!mgr)
             return;
-        for (const {obj, id} of sigs) {
-            try { obj.disconnect(id); } catch (_e) {}
-        }
+        mgr.destroy();
         this._windowSignals.delete(metaWindow);
     }
 
