@@ -86,16 +86,18 @@ export default class HyperGnomeExtension extends Extension {
 
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        // Toggle tiling on/off
-        const tilingToggle = new PopupMenu.PopupSwitchMenuItem(
+        // Toggle tiling on/off.  Assign to this._tilingToggle BEFORE
+        // addMenuItem so Shexli (EGO014) can trace the parent-child link
+        // through `this.*` references and recognise the cascade cleanup
+        // on indicator destroy.
+        this._tilingToggle = new PopupMenu.PopupSwitchMenuItem(
             'Tiling',
             this._settings.get_boolean('tiling-enabled'),
         );
-        this._signals.connect(tilingToggle, 'toggled', (_item, state) => {
+        this._signals.connect(this._tilingToggle, 'toggled', (_item, state) => {
             this._settings.set_boolean('tiling-enabled', state);
         });
-        this._indicator.menu.addMenuItem(tilingToggle);
-        this._tilingToggle = tilingToggle;
+        this._indicator.menu.addMenuItem(this._tilingToggle);
 
         // Separator
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
