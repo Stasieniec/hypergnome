@@ -14,6 +14,7 @@
 
 import Cairo from 'cairo';
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import St from 'gi://St';
 
 import {SignalManager} from '../util/signalManager.js';
@@ -239,12 +240,25 @@ export class BorderManager {
         if (speed <= 0)
             return;
 
+        // Treat `speed` as "degrees per frame at 60fps" to preserve the
+        // setting's existing meaning, but advance by real elapsed time so
+        // the rotation rate stays consistent across frame drops, throttled
+        // compositors, and resume-from-suspend.  GLib.get_monotonic_time
+        // returns microseconds and is unambiguous about delta semantics.
+        const FPS = 60;
+        let lastTickUs = GLib.get_monotonic_time();
         this._timeline = new Clutter.Timeline({
             duration: 1000,
             repeat_count: -1,
         });
-        this._timeline.connect('new-frame', (_t, elapsed) => {
-            this._gradientAngle = (this._gradientAngle + speed) % 360;
+        this._timeline.connect('new-frame', () => {
+            const nowUs = GLib.get_monotonic_time();
+            const deltaSec = (nowUs - lastTickUs) / 1_000_000;
+            lastTickUs = nowUs;
+            // Clamp catch-up after suspend: a 5-minute pause shouldn't
+            // produce a visible spin when the screen wakes up.
+            const step = speed * FPS * Math.min(deltaSec, 0.1);
+            this._gradientAngle = (this._gradientAngle + step) % 360;
             this._invalidateCanvas();
         });
         this._timeline.start();
