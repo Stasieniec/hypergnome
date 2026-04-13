@@ -11,7 +11,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Tree, NodeType, SplitDirection} from './tree.js';
 import {computeLayout, computeNodeRect, findNeighborInDirection} from './layout.js';
-import {moveWindowToMonitor, focusOnAdjacentMonitor} from './monitorUtils.js';
+import {moveWindowToMonitor, focusOnAdjacentMonitor} from '../util/monitorUtils.js';
 import {shouldTile} from '../util/windowFilters.js';
 import {unmaximizeWindow, isMaximized, isConstrained, isResizeGrab} from '../util/compat.js';
 import {SignalManager} from '../util/signalManager.js';

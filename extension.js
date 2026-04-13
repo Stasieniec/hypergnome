@@ -6,7 +6,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {TilingManager} from './src/core/tilingManager.js';
-import {KeybindingManager} from './src/keybindings.js';
+import {KeybindingManager} from './src/core/keybindings.js';
 import {BorderManager} from './src/core/borderManager.js';
 import {EffectsManager} from './src/core/effectsManager.js';
 import {WindowAnimationManager} from './src/core/windowAnimationManager.js';

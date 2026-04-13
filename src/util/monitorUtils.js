@@ -6,8 +6,8 @@
  * keep file sizes manageable.
  */
 
-import {Direction} from './tree.js';
-import {computeLayout, computeNodeRect} from './layout.js';
+import {Direction} from '../core/tree.js';
+import {computeLayout, computeNodeRect} from '../core/layout.js';
 
 /**
  * Find the adjacent monitor in a direction using geometric comparison.
