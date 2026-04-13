@@ -76,8 +76,8 @@ export class BorderManager {
             () => this._onGradientSettingsChanged());
         this._signals.connect(this._settings, 'changed::active-border-gradient-speed',
             () => this._onGradientSpeedChanged());
-        this._signals.connect(this._settings, 'changed::focus-pulse',
-            () => {});
+        // focus-pulse is read at use-time in _onFocusChanged, so it picks up
+        // the new value on the next focus event with no subscription needed.
 
         // Show border on the currently focused window
         this._onFocusChanged();
