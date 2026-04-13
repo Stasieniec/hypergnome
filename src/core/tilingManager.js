@@ -474,7 +474,7 @@ export class TilingManager {
                         const workArea = ws.get_work_area_for_monitor(monIndex);
                         const defaultRatio = this._settings.get_double('split-ratio');
                         let nodeRect = workArea;
-                        const lastLeaf = newTree._findLastLeaf(newTree.root);
+                        const lastLeaf = newTree.findLastLeaf();
                         if (lastLeaf)
                             nodeRect = computeNodeRect(lastLeaf, workArea);
                         newTree.insert(metaWindow, null, defaultRatio, nodeRect);
@@ -586,7 +586,7 @@ export class TilingManager {
 
         // Compute nodeRect from the last leaf for proper dwindle direction
         let nodeRect = workArea;
-        const lastLeaf = tree._findLastLeaf(tree.root);
+        const lastLeaf = tree.findLastLeaf();
         if (lastLeaf)
             nodeRect = computeNodeRect(lastLeaf, workArea);
 
@@ -691,7 +691,7 @@ export class TilingManager {
         let nodeRect = workArea;
         const targetLeaf = splitTarget
             ? tree.findLeaf(splitTarget)
-            : tree._findLastLeaf(tree.root);
+            : tree.findLastLeaf();
         if (targetLeaf)
             nodeRect = computeNodeRect(targetLeaf, workArea);
 

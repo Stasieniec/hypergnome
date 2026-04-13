@@ -108,7 +108,7 @@ export function moveWindowToMonitor(metaWindow, direction, ctx) {
     const defaultRatio = ctx.settings.get_double('split-ratio');
 
     let nodeRect = workArea;
-    const lastLeaf = targetTree._findLastLeaf(targetTree.root);
+    const lastLeaf = targetTree.findLastLeaf();
     if (lastLeaf)
         nodeRect = computeNodeRect(lastLeaf, workArea);
 

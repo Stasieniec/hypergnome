@@ -302,7 +302,7 @@ describe('edge cases', () => {
         // _insertWindow re-inserts next to the last leaf when the focused
         // window isn't already in the tree.  After removing w2, last leaf
         // is w3, so w2 ends up split next to w3 — not where it started.
-        const lastLeaf = tree._findLastLeaf(tree.root);
+        const lastLeaf = tree.findLastLeaf();
         const lastLeafWin = lastLeaf.window;
         tree.insert(w2, lastLeafWin, 0.5, WIDE_RECT);
 

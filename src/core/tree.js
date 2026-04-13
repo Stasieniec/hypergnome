@@ -94,7 +94,7 @@ export class Tree {
             targetLeaf = this._windowToLeaf.get(focusedWindow);
 
         if (!targetLeaf)
-            targetLeaf = this._findLastLeaf(this.root);
+            targetLeaf = this.findLastLeaf();
 
         if (!targetLeaf) {
             this.root = newLeaf;
@@ -261,15 +261,19 @@ export class Tree {
     }
 
     /**
-     * Find the rightmost/deepest leaf (for default insertion point).
-     * @param {Node} node
+     * Find the rightmost/deepest leaf (the default insertion point for
+     * new windows when no explicit split target is given).
      * @returns {Node|null}
      */
-    _findLastLeaf(node) {
+    findLastLeaf() {
+        return this._findLastLeafFrom(this.root);
+    }
+
+    _findLastLeafFrom(node) {
         if (!node)
             return null;
         if (node.type === NodeType.LEAF)
             return node;
-        return this._findLastLeaf(node.childB) || this._findLastLeaf(node.childA);
+        return this._findLastLeafFrom(node.childB) || this._findLastLeafFrom(node.childA);
     }
 }
