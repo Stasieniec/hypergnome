@@ -17,6 +17,8 @@
 import Clutter from 'gi://Clutter';
 import Graphene from 'gi://Graphene';
 
+import {blockWindowSignals} from './windowBlock.js';
+
 const DEFAULT_DURATION_MS = 200;
 const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
 
@@ -52,6 +54,7 @@ export function animateWindow(metaWindow, targetRect, durationMs) {
     const dw = Math.abs(oldRect.width - newW);
     const dh = Math.abs(oldRect.height - newH);
     if (dx < 2 && dy < 2 && dw < 2 && dh < 2) {
+        blockWindowSignals(metaWindow);
         metaWindow.move_frame(true, newX, newY);
         metaWindow.move_resize_frame(true, newX, newY, newW, newH);
         return;
@@ -83,6 +86,7 @@ export function animateWindow(metaWindow, targetRect, durationMs) {
         global.window_group.add_child(clone);
     } catch (_e) {
         // Clone creation failed — fall back to instant move
+        blockWindowSignals(metaWindow);
         metaWindow.move_frame(true, newX, newY);
         metaWindow.move_resize_frame(true, newX, newY, newW, newH);
         return;
@@ -95,6 +99,7 @@ export function animateWindow(metaWindow, targetRect, durationMs) {
     //    move_frame first ensures position takes effect even on apps
     //    (e.g. terminals) that ignore position changes in move_resize_frame.
     //    user_op=true avoids work area clamping on multi-monitor setups.
+    blockWindowSignals(metaWindow);
     metaWindow.move_frame(true, newX, newY);
     metaWindow.move_resize_frame(true, newX, newY, newW, newH);
 
@@ -165,6 +170,7 @@ export function snapWindow(metaWindow, targetRect) {
         actor.scale_x = 1;
         actor.scale_y = 1;
     }
+    blockWindowSignals(metaWindow);
     metaWindow.move_frame(true, targetRect.x, targetRect.y);
     metaWindow.move_resize_frame(
         true, targetRect.x, targetRect.y, targetRect.width, targetRect.height,
