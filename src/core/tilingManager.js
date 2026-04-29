@@ -7,6 +7,7 @@
  */
 
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Tree, NodeType, SplitDirection} from './tree.js';
@@ -16,6 +17,7 @@ import {shouldTile} from '../util/windowFilters.js';
 import {unmaximizeWindow, isMaximized, isConstrained, isResizeGrab} from '../util/compat.js';
 import {SignalManager} from '../util/signalManager.js';
 import {animateWindow, snapWindow, animateSlideIn} from '../util/animator.js';
+import {blockWindowSignals, isWindowBlocked, clearWindowBlock} from '../util/windowBlock.js';
 
 const DEBOUNCE_MS = 200;
 
@@ -31,6 +33,7 @@ export class TilingManager {
         this._windowSignals = new Map();     // Meta.Window -> SignalManager
         this._pendingWindows = new Map();    // Meta.Window -> {actorSignalId, idleSourceId, actor}
         this._debounceSourceId = null;
+        this._pendingRelayouts = new Set();  // "wsIndex:monIndex" or "active"
         this._deferredLayoutSources = new Set(); // Idle source IDs for deferred layout
         this._movingWindow = null;          // Guard for cross-monitor moves
         this._inLayout = false;             // Recursion guard for _applyLayout
@@ -98,6 +101,7 @@ export class TilingManager {
             GLib.source_remove(this._debounceSourceId);
             this._debounceSourceId = null;
         }
+        this._pendingRelayouts.clear();
 
         // Remove deferred layout sources
         for (const sourceId of this._deferredLayoutSources)
@@ -127,6 +131,7 @@ export class TilingManager {
             for (const win of tree.getWindows()) {
                 delete win._hypergnomeTiledRect;
                 delete win._hypergnomePreTileRect;
+                clearWindowBlock(win);
             }
             tree.destroy();
         }
@@ -230,6 +235,7 @@ export class TilingManager {
                 const preRect = focused._hypergnomePreTileRect;
                 if (preRect) {
                     try {
+                        blockWindowSignals(focused);
                         focused.move_resize_frame(
                             false, preRect.x, preRect.y,
                             preRect.width, preRect.height);
@@ -493,6 +499,7 @@ export class TilingManager {
                 for (const win of tree.getWindows()) {
                     delete win._hypergnomeTiledRect;
                     delete win._hypergnomePreTileRect;
+                    clearWindowBlock(win);
                 }
             }
             // Disconnect per-window signals, destroy trees
@@ -517,6 +524,7 @@ export class TilingManager {
                     tree.remove(win);
                     delete win._hypergnomeTiledRect;
                     delete win._hypergnomePreTileRect;
+                    clearWindowBlock(win);
                     this._disconnectWindowSignals(win);
                 }
             }
@@ -532,6 +540,7 @@ export class TilingManager {
         this._floatingWindows.delete(metaWindow);
         delete metaWindow._hypergnomeTiledRect;
         delete metaWindow._hypergnomePreTileRect;
+        clearWindowBlock(metaWindow);
 
         const tree = this._findTreeContaining(metaWindow);
         if (tree) {
@@ -595,6 +604,55 @@ export class TilingManager {
             if (this._isTilingActive())
                 this._insertWindow(metaWindow);
         }
+    }
+
+    /**
+     * External size or position change on a tiled window.
+     *
+     * Chromium-based browsers (Chrome, Vivaldi, Zen) re-broadcast their
+     * preferred frame size when their Wayland surface is remapped during
+     * a workspace switch — without this handler the window drifts out of
+     * its tile and only snaps back the next time the user visits its
+     * workspace (#6).
+     *
+     * Re-entrancy defence:
+     *   1. block flag — animateWindow / snapWindow / unmaximizeWindow
+     *      tag the window for ~150ms before issuing their move, so the
+     *      resulting echo is ignored.
+     *   2. user grab — never relayout while the user is dragging or
+     *      resizing the window with the mouse.
+     *   3. 200ms debounce inside _queueRelayout — even if a fight-back
+     *      slips through, _applyLayout's no-op guard (oldRect == target)
+     *      terminates the loop on the second pass.
+     */
+    _onWindowGeometryChanged(metaWindow) {
+        if (isWindowBlocked(metaWindow))
+            return;
+        if (!this._isTilingActive())
+            return;
+        if (this._floatingWindows.has(metaWindow))
+            return;
+        if (!this._findTreeContaining(metaWindow))
+            return;
+        if (metaWindow.minimized || metaWindow.is_fullscreen())
+            return;
+
+        // Skip while the user is drag-moving / resizing the window —
+        // _onGrabEnd will queue the relayout once the grab ends.
+        try {
+            const grabOp = global.display.get_grab_op();
+            if (grabOp && grabOp !== Meta.GrabOp.NONE)
+                return;
+        } catch (_e) {}
+
+        const ws = metaWindow.get_workspace();
+        if (!ws)
+            return;
+
+        this._queueRelayout({
+            wsIndex: ws.index(),
+            monIndex: metaWindow.get_monitor(),
+        });
     }
 
     _onWindowFullscreenChanged(metaWindow) {
@@ -663,8 +721,10 @@ export class TilingManager {
         }
 
         // Unmaximize if maximized — we manage tiling
-        if (isMaximized(metaWindow))
+        if (isMaximized(metaWindow)) {
+            blockWindowSignals(metaWindow);
             unmaximizeWindow(metaWindow);
+        }
 
         const workArea = ws.get_work_area_for_monitor(monIndex);
         const defaultRatio = this._settings.get_double('split-ratio');
@@ -711,6 +771,16 @@ export class TilingManager {
         if (!ws)
             return;
 
+        // Skip the clone-based animation when the workspace isn't visible:
+        // animateWindow parents a Clutter.Clone into global.window_group, and
+        // for a non-active workspace's windows that clone would briefly draw
+        // on top of whatever the user is currently looking at.  A direct snap
+        // is invisible to the user (their workspace is unchanged) and avoids
+        // the visual glitch.
+        const activeWsIndex =
+            global.workspace_manager.get_active_workspace_index();
+        const animate = wsIndex === activeWsIndex;
+
         this._inLayout = true;
         try {
             const workArea = ws.get_work_area_for_monitor(monIndex);
@@ -734,8 +804,10 @@ export class TilingManager {
                     // Clear any maximize/tile constraint (full, half, or quarter).
                     // GNOME's native tiling sets MaximizeFlags that prevent
                     // move_resize_frame from working correctly.
-                    if (isConstrained(metaWindow))
+                    if (isConstrained(metaWindow)) {
+                        blockWindowSignals(metaWindow);
                         unmaximizeWindow(metaWindow);
+                    }
 
                     // Store intended rect on the window. Apps with size
                     // constraints (e.g. terminals with character-grid
@@ -744,10 +816,14 @@ export class TilingManager {
                     // so that constraint-induced gaps don't cascade.
                     metaWindow._hypergnomeTiledRect = targetRect;
 
-                    // animateWindow captures old rect, calls move_resize_frame,
-                    // then animates the actor from old to new position.
-                    animateWindow(metaWindow, targetRect,
-                        this._settings.get_int('animation-duration'));
+                    if (animate) {
+                        // animateWindow captures old rect, calls move_resize_frame,
+                        // then animates the actor from old to new position.
+                        animateWindow(metaWindow, targetRect,
+                            this._settings.get_int('animation-duration'));
+                    } else {
+                        snapWindow(metaWindow, targetRect);
+                    }
                 } catch (_e) {
                     // Window may have been destroyed between layout calc and apply
                 }
@@ -958,8 +1034,10 @@ export class TilingManager {
                 if (tree.contains(metaWindow))
                     continue;
 
-                if (isMaximized(metaWindow))
+                if (isMaximized(metaWindow)) {
+                    blockWindowSignals(metaWindow);
                     unmaximizeWindow(metaWindow);
+                }
 
                 // Compute nodeRect from the last inserted window's leaf for
                 // proper dwindle split direction (alternating H/V)
@@ -983,16 +1061,61 @@ export class TilingManager {
     // Debounce
     // =========================================================================
 
-    _queueRelayout() {
-        if (this._debounceSourceId !== null) {
-            GLib.source_remove(this._debounceSourceId);
-            this._debounceSourceId = null;
-        }
+    /**
+     * Queue a debounced relayout.
+     *
+     * Without arguments, the active workspace's monitors are relayouted
+     * (legacy behaviour). With `{wsIndex, monIndex}`, that specific tree
+     * is relayouted — used by the per-window geometry-changed handler so
+     * that a window drifting on a non-active workspace can be snapped
+     * back without waiting for the user to switch back.
+     *
+     * Leading-edge debounce: the timer fires DEBOUNCE_MS after the *first*
+     * pending call.  This is deliberate — a Chromium browser that
+     * re-broadcasts its preferred frame size every few ms must not be
+     * able to starve the relayout by continually pushing the deadline
+     * back.  Targets queued during the wait coalesce into the same
+     * firing via a Set.
+     *
+     * @param {{wsIndex: number, monIndex: number}} [target]
+     */
+    _queueRelayout(target) {
+        if (target)
+            this._pendingRelayouts.add(`${target.wsIndex}:${target.monIndex}`);
+        else
+            this._pendingRelayouts.add('active');
+
+        if (this._debounceSourceId !== null)
+            return;
 
         this._debounceSourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEBOUNCE_MS, () => {
             this._debounceSourceId = null;
+
+            // disable() may have run while the timer was queued — bail
+            // before touching this._settings (which is now null).
+            if (!this._enabled) {
+                this._pendingRelayouts.clear();
+                return GLib.SOURCE_REMOVE;
+            }
+
+            const targets = new Set(this._pendingRelayouts);
+            this._pendingRelayouts.clear();
             try {
-                this._relayoutActiveWorkspace();
+                const activeWsIndex =
+                    global.workspace_manager.get_active_workspace_index();
+                const activeQueued = targets.has('active');
+                if (activeQueued)
+                    this._relayoutActiveWorkspace();
+                for (const key of targets) {
+                    if (key === 'active')
+                        continue;
+                    const [ws, mon] = key.split(':').map(Number);
+                    // Skip targets already covered by _relayoutActiveWorkspace
+                    // (avoids a duplicate _applyLayout + extra deferred snap).
+                    if (activeQueued && ws === activeWsIndex)
+                        continue;
+                    this._applyLayout(ws, mon);
+                }
             } catch (e) {
                 logError(e, 'HyperGnome: error during relayout');
             }
@@ -1113,6 +1236,18 @@ export class TilingManager {
             wrap('minimized', () => this._onWindowMinimizedChanged(metaWindow)));
         mgr.connect(metaWindow, 'notify::fullscreen',
             wrap('fullscreen', () => this._onWindowFullscreenChanged(metaWindow)));
+
+        // size-changed / position-changed catch external geometry drift —
+        // typically Chromium-based browsers (Chrome, Vivaldi, Zen) that
+        // re-broadcast their preferred frame size when their surface gets
+        // remapped during a workspace switch (#6).  The handler debounces
+        // through _queueRelayout (200ms) and skips its own echo via the
+        // per-window block flag set inside animateWindow / snapWindow /
+        // unmaximizeWindow callsites.
+        mgr.connect(metaWindow, 'size-changed',
+            wrap('size-changed', () => this._onWindowGeometryChanged(metaWindow)));
+        mgr.connect(metaWindow, 'position-changed',
+            wrap('position-changed', () => this._onWindowGeometryChanged(metaWindow)));
 
         // NOTE: Do NOT listen to notify::maximized-horizontally /
         // notify::maximized-vertically.  Calling unmaximizeWindow() from
