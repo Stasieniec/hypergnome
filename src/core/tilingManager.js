@@ -88,6 +88,12 @@ export class TilingManager {
             () => this._onTilingEnabledChanged());
         this._signals.connect(this._settings, 'changed::float-list',
             () => this._onFloatListChanged());
+        this._signals.connect(this._settings, 'changed::layout-mode',
+            () => this._onLayoutModeChanged());
+        this._signals.connect(this._settings, 'changed::master-orientation',
+            () => this._onLayoutModeChanged());
+        this._signals.connect(this._settings, 'changed::master-factor',
+            () => this._onMasterFactorChanged());
 
         // Tile existing windows on the active workspace
         if (this._settings.get_boolean('tiling-enabled'))
@@ -596,6 +602,51 @@ export class TilingManager {
                     this._disconnectWindowSignals(win);
                 }
             }
+        }
+        this._queueRelayout();
+    }
+
+    /**
+     * Layout mode or master orientation changed → destroy all trees and
+     * re-tile the active workspace. Non-active workspaces re-tile lazily
+     * on the next switch (matches the _onMonitorsChanged behavior).
+     */
+    _onLayoutModeChanged() {
+        if (!this._enabled)
+            return;
+
+        // Clean up window markers and disconnect signals before destroying trees
+        for (const [_key, tree] of this._trees) {
+            for (const win of tree.getWindows()) {
+                delete win._hypergnomeTiledRect;
+                clearWindowBlock(win);
+            }
+        }
+        for (const [win, _sigs] of this._windowSignals)
+            this._disconnectWindowSignals(win);
+        for (const [_key, tree] of this._trees)
+            tree.destroy();
+        this._trees.clear();
+
+        if (this._isTilingActive())
+            this._tileExistingWindows();
+    }
+
+    /**
+     * Master area ratio slider changed → update the root fork ratio of
+     * every live tree in master mode and queue a relayout.
+     */
+    _onMasterFactorChanged() {
+        if (!this._isMasterMode())
+            return;
+        const mfact = this._settings.get_double('master-factor');
+        const orientation = this._settings.get_string('master-orientation');
+        const masterIsChildA = orientation === 'left' || orientation === 'top';
+        const newRatio = masterIsChildA ? mfact : 1 - mfact;
+
+        for (const [_key, tree] of this._trees) {
+            if (tree.root && tree.root.type === 'fork')
+                tree.root.splitRatio = newRatio;
         }
         this._queueRelayout();
     }
