@@ -269,6 +269,12 @@ export class TilingManager {
         if (!this._isTilingActive())
             return;
 
+        // In master mode, Super+P cycles orientation instead.
+        if (this._isMasterMode()) {
+            this.cycleOrientation();
+            return;
+        }
+
         const focused = global.display.get_focus_window();
         if (!focused)
             return;
@@ -307,6 +313,67 @@ export class TilingManager {
             this._resetRatios(tree.root);
             this._applyLayout(wsIndex, i);
         }
+    }
+
+    /**
+     * Swap the focused window with the master window (master mode only).
+     */
+    swapWithMaster() {
+        if (!this._isTilingActive())
+            return;
+        if (!this._isMasterMode())
+            return;
+        const focused = global.display.get_focus_window();
+        if (!focused)
+            return;
+        const tree = this._findTreeContaining(focused);
+        if (!tree)
+            return;
+        try {
+            MasterLayout.swapWithMaster(
+                tree, focused,
+                this._settings.get_string('master-orientation'));
+        } catch (e) {
+            logError(e, 'HyperGnome: swapWithMaster');
+            this._queueRelayout();
+            return;
+        }
+        const ws = focused.get_workspace();
+        if (ws)
+            this._applyLayout(ws.index(), focused.get_monitor());
+    }
+
+    /**
+     * Focus the master window (master mode only).
+     */
+    focusMaster() {
+        if (!this._isTilingActive())
+            return;
+        if (!this._isMasterMode())
+            return;
+        const focused = global.display.get_focus_window();
+        const tree = focused
+            ? this._findTreeContaining(focused)
+            : this._activeMonitorTree();
+        if (!tree)
+            return;
+        const master = MasterLayout.getMaster(
+            tree, this._settings.get_string('master-orientation'));
+        if (master)
+            master.activate(global.get_current_time());
+    }
+
+    /**
+     * Cycle the master orientation: left → right → top → bottom → left.
+     * Updates the GSettings key, which fires the change handler that
+     * rebuilds all trees.
+     */
+    cycleOrientation() {
+        if (!this._isMasterMode())
+            return;
+        const current = this._settings.get_string('master-orientation');
+        this._settings.set_string('master-orientation',
+            MasterLayout.nextOrientation(current));
     }
 
     /**
@@ -1146,6 +1213,17 @@ export class TilingManager {
     _isMasterMode() {
         return this._settings &&
                this._settings.get_string('layout-mode') === 'master';
+    }
+
+    /**
+     * Return the tree for the focused monitor on the active workspace,
+     * or null. Used by focusMaster when no window has focus.
+     */
+    _activeMonitorTree() {
+        const wsIndex = global.workspace_manager.get_active_workspace_index();
+        const monIndex = global.display.get_current_monitor();
+        const key = `${wsIndex}:${monIndex}`;
+        return this._trees.get(key) ?? null;
     }
 
     /**
