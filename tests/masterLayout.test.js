@@ -149,4 +149,37 @@ describe('insertMaster — third+ windows (stack chain)', () => {
         assert.ok(Math.abs(stack.childB.splitRatio - 1 / 3) < 1e-9);
         assert.ok(Math.abs(stack.childB.childB.splitRatio - 1 / 2) < 1e-9);
     });
+
+    it('orientation=bottom: master in childB, stack chain HORIZONTAL', () => {
+        const tree = new Tree();
+        const [wm, s0, s1] = [win('m'), win('s0'), win('s1')];
+        for (const w of [wm, s0, s1])
+            insertMaster(tree, w, Orientation.BOTTOM, 0.55);
+
+        assert.equal(tree.root.splitDirection, 'vertical');
+        assert.equal(tree.root.childB.window, wm);
+        const stack = tree.root.childA;
+        assert.equal(stack.splitDirection, 'horizontal');
+        assert.ok(Math.abs(stack.splitRatio - 1 / 2) < 1e-9);
+        assert.equal(stack.childA.window, s0);
+        assert.equal(stack.childB.window, s1);
+    });
+});
+
+describe('rebalanceStack', () => {
+    it('resets stack fork ratios to 1/(K-d)', () => {
+        const tree = new Tree();
+        const wins = [win('m'), win('s0'), win('s1'), win('s2')];
+        for (const w of wins)
+            insertMaster(tree, w, Orientation.LEFT, 0.55);
+
+        // Corrupt the ratios deliberately
+        tree.root.childB.splitRatio = 0.9;
+        tree.root.childB.childB.splitRatio = 0.9;
+
+        rebalanceStack(tree, Orientation.LEFT);
+
+        assert.ok(Math.abs(tree.root.childB.splitRatio - 1 / 3) < 1e-9);
+        assert.ok(Math.abs(tree.root.childB.childB.splitRatio - 1 / 2) < 1e-9);
+    });
 });
