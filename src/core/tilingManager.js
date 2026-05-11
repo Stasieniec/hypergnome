@@ -1090,35 +1090,48 @@ export class TilingManager {
 
             const sorted = global.display.sort_windows_by_stacking(windows);
             const workArea = ws.get_work_area_for_monitor(monIndex);
-            const defaultRatio = this._settings.get_double('split-ratio');
             const tree = this._getTree(wsIndex, monIndex);
 
-            let lastInserted = null;
+            const tileable = sorted.filter(w =>
+                !this._floatingWindows.has(w) && !tree.contains(w));
 
-            for (const metaWindow of sorted) {
-                if (this._floatingWindows.has(metaWindow))
-                    continue;
-
-                if (tree.contains(metaWindow))
-                    continue;
-
-                if (isMaximized(metaWindow)) {
-                    blockWindowSignals(metaWindow);
-                    unmaximizeWindow(metaWindow);
+            if (this._isMasterMode()) {
+                // Master mode: unmaximize all, build canonical shape from
+                // (already-tracked + newly-tileable) windows in stacking order.
+                for (const metaWindow of tileable) {
+                    if (isMaximized(metaWindow)) {
+                        blockWindowSignals(metaWindow);
+                        unmaximizeWindow(metaWindow);
+                    }
                 }
-
-                // Compute nodeRect from the last inserted window's leaf for
-                // proper dwindle split direction (alternating H/V)
-                let nodeRect = workArea;
-                if (lastInserted && tree.contains(lastInserted)) {
-                    const targetLeaf = tree.findLeaf(lastInserted);
-                    if (targetLeaf)
-                        nodeRect = computeNodeRect(targetLeaf, workArea);
+                const existing = tree.getWindows();
+                const allOrdered = [...existing, ...tileable];
+                MasterLayout.rebuildShape(
+                    tree, allOrdered,
+                    this._settings.get_string('master-orientation'),
+                    this._settings.get_double('master-factor'));
+                for (const metaWindow of tileable)
+                    this._connectWindowSignals(metaWindow);
+            } else {
+                // Dwindle mode: per-window insertion with last-inserted's
+                // node rect for proper split direction.
+                const defaultRatio = this._settings.get_double('split-ratio');
+                let lastInserted = null;
+                for (const metaWindow of tileable) {
+                    if (isMaximized(metaWindow)) {
+                        blockWindowSignals(metaWindow);
+                        unmaximizeWindow(metaWindow);
+                    }
+                    let nodeRect = workArea;
+                    if (lastInserted && tree.contains(lastInserted)) {
+                        const targetLeaf = tree.findLeaf(lastInserted);
+                        if (targetLeaf)
+                            nodeRect = computeNodeRect(targetLeaf, workArea);
+                    }
+                    tree.insert(metaWindow, lastInserted, defaultRatio, nodeRect);
+                    this._connectWindowSignals(metaWindow);
+                    lastInserted = metaWindow;
                 }
-
-                this._treeInsert(tree, metaWindow, lastInserted, defaultRatio, nodeRect);
-                this._connectWindowSignals(metaWindow);
-                lastInserted = metaWindow;
             }
 
             this._applyLayout(wsIndex, monIndex);
