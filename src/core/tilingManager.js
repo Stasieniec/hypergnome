@@ -12,6 +12,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Tree, NodeType, SplitDirection} from './tree.js';
 import {computeLayout, computeNodeRect, findNeighborInDirection} from './layout.js';
+import * as MasterLayout from './masterLayout.js';
 import {moveWindowToMonitor, focusOnAdjacentMonitor} from '../util/monitorUtils.js';
 import {shouldTile} from '../util/windowFilters.js';
 import {unmaximizeWindow, isMaximized, isConstrained, isResizeGrab} from '../util/compat.js';
@@ -225,7 +226,7 @@ export class TilingManager {
         } else {
             const tree = this._findTreeContaining(focused);
             if (tree) {
-                tree.remove(focused);
+                this._treeRemove(tree, focused);
                 delete focused._hypergnomeTiledRect;
                 this._floatingWindows.add(focused);
                 this._queueRelayout();
@@ -460,7 +461,7 @@ export class TilingManager {
                 const [, oldMon] = key.split(':').map(Number);
                 if (oldMon !== monIndex) {
                     // Window moved monitors — remove from old tree, insert into new
-                    tree.remove(metaWindow);
+                    this._treeRemove(tree, metaWindow);
                     const ws = metaWindow.get_workspace();
                     if (ws) {
                         const wsIndex = ws.index();
@@ -471,7 +472,7 @@ export class TilingManager {
                         const lastLeaf = newTree.findLastLeaf();
                         if (lastLeaf)
                             nodeRect = computeNodeRect(lastLeaf, workArea);
-                        newTree.insert(metaWindow, null, defaultRatio, nodeRect);
+                        this._treeInsert(newTree, metaWindow, null, defaultRatio, nodeRect);
                         this._applyLayout(wsIndex, oldMon);
                         this._applyLayout(wsIndex, monIndex);
                     }
@@ -521,7 +522,7 @@ export class TilingManager {
             const windows = tree.getWindows();
             for (const win of windows) {
                 if (!shouldTile(win, floatList)) {
-                    tree.remove(win);
+                    this._treeRemove(tree, win);
                     delete win._hypergnomeTiledRect;
                     delete win._hypergnomePreTileRect;
                     clearWindowBlock(win);
@@ -544,7 +545,7 @@ export class TilingManager {
 
         const tree = this._findTreeContaining(metaWindow);
         if (tree) {
-            tree.remove(metaWindow);
+            this._treeRemove(tree, metaWindow);
             this._queueRelayout();
         }
     }
@@ -557,7 +558,7 @@ export class TilingManager {
         // Remove from whichever tree currently contains it
         const oldTree = this._findTreeContaining(metaWindow);
         if (oldTree) {
-            oldTree.remove(metaWindow);
+            this._treeRemove(oldTree, metaWindow);
             delete metaWindow._hypergnomeTiledRect;
         }
 
@@ -587,7 +588,7 @@ export class TilingManager {
         if (lastLeaf)
             nodeRect = computeNodeRect(lastLeaf, workArea);
 
-        tree.insert(metaWindow, null, defaultRatio, nodeRect);
+        this._treeInsert(tree, metaWindow, null, defaultRatio, nodeRect);
         this._queueRelayout();
     }
 
@@ -595,7 +596,7 @@ export class TilingManager {
         if (metaWindow.minimized) {
             const tree = this._findTreeContaining(metaWindow);
             if (tree) {
-                tree.remove(metaWindow);
+                this._treeRemove(tree, metaWindow);
                 delete metaWindow._hypergnomeTiledRect;
                 this._queueRelayout();
             }
@@ -743,7 +744,7 @@ export class TilingManager {
         if (targetLeaf)
             nodeRect = computeNodeRect(targetLeaf, workArea);
 
-        tree.insert(metaWindow, splitTarget, defaultRatio, nodeRect);
+        this._treeInsert(tree, metaWindow, splitTarget, defaultRatio, nodeRect);
         this._connectWindowSignals(metaWindow);
         this._applyLayout(wsIndex, monIndex);
     }
@@ -1048,7 +1049,7 @@ export class TilingManager {
                         nodeRect = computeNodeRect(targetLeaf, workArea);
                 }
 
-                tree.insert(metaWindow, lastInserted, defaultRatio, nodeRect);
+                this._treeInsert(tree, metaWindow, lastInserted, defaultRatio, nodeRect);
                 this._connectWindowSignals(metaWindow);
                 lastInserted = metaWindow;
             }
@@ -1137,6 +1138,48 @@ export class TilingManager {
     _isTilingActive() {
         return this._enabled && this._settings &&
                this._settings.get_boolean('tiling-enabled');
+    }
+
+    /**
+     * @returns {boolean} true if the active layout mode is master/stack
+     */
+    _isMasterMode() {
+        return this._settings &&
+               this._settings.get_string('layout-mode') === 'master';
+    }
+
+    /**
+     * Layout-aware insert. Dispatches to master or dwindle.
+     * @param {Tree} tree
+     * @param {Meta.Window} metaWindow
+     * @param {Meta.Window|null} splitTarget  (dwindle only)
+     * @param {number} defaultRatio           (dwindle only)
+     * @param {object} nodeRect               (dwindle only)
+     */
+    _treeInsert(tree, metaWindow, splitTarget, defaultRatio, nodeRect) {
+        if (this._isMasterMode()) {
+            MasterLayout.insertMaster(
+                tree, metaWindow,
+                this._settings.get_string('master-orientation'),
+                this._settings.get_double('master-factor'));
+        } else {
+            tree.insert(metaWindow, splitTarget, defaultRatio, nodeRect);
+        }
+    }
+
+    /**
+     * Layout-aware remove.
+     * @param {Tree} tree
+     * @param {Meta.Window} metaWindow
+     */
+    _treeRemove(tree, metaWindow) {
+        if (this._isMasterMode()) {
+            MasterLayout.removeMaster(
+                tree, metaWindow,
+                this._settings.get_string('master-orientation'));
+        } else {
+            tree.remove(metaWindow);
+        }
     }
 
     /**
