@@ -42,6 +42,35 @@
       <description>Amount to change split ratio per resize keypress (0.01 - 0.25)</description>
     </key>
 
+    <!-- Layout mode -->
+    <key name="layout-mode" type="s">
+      <choices>
+        <choice value="dwindle"/>
+        <choice value="master"/>
+      </choices>
+      <default>'dwindle'</default>
+      <summary>Tiling layout</summary>
+      <description>Active tiling algorithm: 'dwindle' (BSP) or 'master' (master + stack)</description>
+    </key>
+
+    <key name="master-orientation" type="s">
+      <choices>
+        <choice value="left"/>
+        <choice value="right"/>
+        <choice value="top"/>
+        <choice value="bottom"/>
+      </choices>
+      <default>'left'</default>
+      <summary>Master area orientation</summary>
+      <description>Which side of the screen the master window occupies (master layout only)</description>
+    </key>
+
+    <key name="master-factor" type="d">
+      <default>0.55</default>
+      <summary>Master area ratio</summary>
+      <description>Fraction of the work area occupied by the master window (0.1 – 0.9)</description>
+    </key>
+
     <!-- Active border -->
     <key name="active-border-size" type="i">
       <default>3</default>
@@ -192,6 +221,25 @@
       <default><![CDATA[['<Super>e']]]></default>
       <summary>Equalize split ratios</summary>
       <description>Reset all split ratios on the current workspace to 50/50</description>
+    </key>
+
+    <!-- Keybindings: Master layout -->
+    <key name="tile-swap-master" type="as">
+      <default><![CDATA[['<Super>Return']]]></default>
+      <summary>Swap with master</summary>
+      <description>Swap the focused window with the master window</description>
+    </key>
+
+    <key name="tile-focus-master" type="as">
+      <default><![CDATA[['<Super>m']]]></default>
+      <summary>Focus master</summary>
+      <description>Move keyboard focus to the master window</description>
+    </key>
+
+    <key name="tile-cycle-orientation" type="as">
+      <default><![CDATA[[]]]></default>
+      <summary>Cycle master orientation</summary>
+      <description>Cycle master orientation: left → right → top → bottom</description>
     </key>
 
     <!-- Keybindings: Resize -->
