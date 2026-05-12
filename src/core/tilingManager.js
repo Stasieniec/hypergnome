@@ -478,6 +478,7 @@ export class TilingManager {
         if (sourceTree)
             this._treeRemove(sourceTree, focused);
         delete focused._hypergnomeTiledRect;
+        delete focused._hypergnomePreTileRect;
 
         // Insert into destination tree if the window should still be tiled.
         if (!this._floatingWindows.has(focused)) {
