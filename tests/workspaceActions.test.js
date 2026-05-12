@@ -131,3 +131,54 @@ describe('moveActiveToWorkspace', () => {
         assert.deepEqual(wm._activated, []);
     });
 });
+
+describe('cycleWorkspace', () => {
+    it('moves forward when not at last workspace', () => {
+        const wm = mockWsManager({nWorkspaces: 4, activeIndex: 1, dynamic: false});
+        cycleWorkspace(wm, +1);
+        assert.deepEqual(wm._activated, [2]);
+    });
+
+    it('moves backward when not at first workspace', () => {
+        const wm = mockWsManager({nWorkspaces: 4, activeIndex: 2, dynamic: false});
+        cycleWorkspace(wm, -1);
+        assert.deepEqual(wm._activated, [1]);
+    });
+
+    it('clamps at last workspace (no wrap, no append)', () => {
+        const wm = mockWsManager({nWorkspaces: 3, activeIndex: 2, dynamic: true});
+        cycleWorkspace(wm, +1);
+        assert.deepEqual(wm._activated, []);
+        assert.deepEqual(wm._appended, []);
+    });
+
+    it('clamps at first workspace', () => {
+        const wm = mockWsManager({nWorkspaces: 3, activeIndex: 0, dynamic: false});
+        cycleWorkspace(wm, -1);
+        assert.deepEqual(wm._activated, []);
+    });
+});
+
+describe('moveActiveAndCycle', () => {
+    it('moves window to neighbor and activates it', () => {
+        const wm = mockWsManager({nWorkspaces: 4, activeIndex: 1, dynamic: false});
+        const win = mockWindow();
+        moveActiveAndCycle(wm, win, +1);
+        assert.deepEqual(win._moves, [{index: 2, append: false}]);
+        assert.deepEqual(wm._activated, [2]);
+    });
+
+    it('no-op at boundary', () => {
+        const wm = mockWsManager({nWorkspaces: 3, activeIndex: 2, dynamic: false});
+        const win = mockWindow();
+        moveActiveAndCycle(wm, win, +1);
+        assert.deepEqual(win._moves, []);
+        assert.deepEqual(wm._activated, []);
+    });
+
+    it('no-op when no focused window', () => {
+        const wm = mockWsManager({nWorkspaces: 3, activeIndex: 1, dynamic: false});
+        moveActiveAndCycle(wm, null, +1);
+        assert.deepEqual(wm._activated, []);
+    });
+});

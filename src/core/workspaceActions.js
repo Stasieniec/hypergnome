@@ -67,10 +67,40 @@ export function moveActiveToWorkspace(workspaceManager, focusedWindow, index, dy
     if (ws) ws.activate(time);
 }
 
-export function cycleWorkspace(_workspaceManager, _direction, _time) {
-    // Not yet implemented
+/**
+ * Cycle to the previous (-1) or next (+1) workspace.
+ *
+ * Clamps at the boundaries — no wrap, no appending. Matches GNOME's existing
+ * switch-to-workspace-up/down behaviour.
+ *
+ * @param {object} workspaceManager - Meta.WorkspaceManager (or mock)
+ * @param {number} direction - +1 (next) or -1 (prev)
+ * @param {number} [time] - Clutter event time
+ */
+export function cycleWorkspace(workspaceManager, direction, time = 0) {
+    const current = workspaceManager.get_active_workspace_index();
+    const target = current + direction;
+    if (target < 0) return;
+    if (target >= workspaceManager.get_n_workspaces()) return;
+    const ws = workspaceManager.get_workspace_by_index(target);
+    if (ws) ws.activate(time);
 }
 
-export function moveActiveAndCycle(_workspaceManager, _focusedWindow, _direction, _time) {
-    // Not yet implemented
+/**
+ * Move the focused window to the neighbouring workspace and follow it.
+ *
+ * @param {object} workspaceManager - Meta.WorkspaceManager (or mock)
+ * @param {object|null} focusedWindow - Meta.Window or null
+ * @param {number} direction - +1 (next) or -1 (prev)
+ * @param {number} [time] - Clutter event time
+ */
+export function moveActiveAndCycle(workspaceManager, focusedWindow, direction, time = 0) {
+    if (!focusedWindow) return;
+    const current = workspaceManager.get_active_workspace_index();
+    const target = current + direction;
+    if (target < 0) return;
+    if (target >= workspaceManager.get_n_workspaces()) return;
+    focusedWindow.change_workspace_by_index(target, false);
+    const ws = workspaceManager.get_workspace_by_index(target);
+    if (ws) ws.activate(time);
 }
