@@ -208,15 +208,24 @@ export function animateSlideIn(metaWindow, offsetX, offsetY, durationMs) {
         (durationMs ?? DEFAULT_DURATION_MS) * SLIDE_DURATION_MULTIPLIER,
     );
 
+    // remove_all_transitions cuts any in-flight focus pulse mid-ease,
+    // which would otherwise leave scale_x/scale_y stuck at ~1.02 for
+    // the duration of the slide-in (visible as the window being
+    // slightly larger than its border).  Snap scale to 1 and include
+    // it in the ease so the actor lands fully reset.
     actor.remove_all_transitions();
     actor.translation_x = offsetX;
     actor.translation_y = offsetY;
     actor.opacity = 0;
+    actor.scale_x = 1;
+    actor.scale_y = 1;
 
     actor.ease({
         translation_x: 0,
         translation_y: 0,
         opacity: 255,
+        scale_x: 1,
+        scale_y: 1,
         duration,
         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
     });

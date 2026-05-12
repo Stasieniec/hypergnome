@@ -341,6 +341,7 @@ export class BorderManager {
         // Disconnect signals from the previous window
         this._windowSignals.destroy();
 
+        const prevFocus = this._focusWindow;
         const win = global.display.get_focus_window();
 
         if (!win || win.is_fullscreen() || win.minimized) {
@@ -350,6 +351,26 @@ export class BorderManager {
         }
 
         this._focusWindow = win;
+
+        // Cross-workspace focus change ⇒ a workspace switch is happening
+        // (or just happened).  On touchpad swipes Mutter's
+        // notify::focus-window can land before active-workspace-changed
+        // updates _lastWsChangeTime, so _shouldPulse would otherwise let
+        // a pulse fire — and the actor pulse's scale 1 → 1.04 ease, if
+        // cut short by TilingManager's animateSlideIn, leaves the
+        // focused window's actor at scale ~1.02 for the whole slide-in.
+        // Update the timestamp now so the same suppression that already
+        // works for keybind workspace switches also covers touchpad.
+        try {
+            const prevWsIdx = prevFocus?.get_workspace?.()?.index();
+            const newWsIdx = win.get_workspace()?.index();
+            if (prevWsIdx !== undefined && newWsIdx !== undefined &&
+                prevWsIdx !== newWsIdx)
+                this._lastWsChangeTime = GLib.get_monotonic_time();
+        } catch (_e) {
+            // get_workspace can throw on a destroyed window — fall back
+            // to relying on the active-workspace-changed timestamp.
+        }
 
         this._windowSignals.connect(win, 'position-changed',
             () => this._updateGeometryAnimated());
