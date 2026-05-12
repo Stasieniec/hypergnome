@@ -1,6 +1,9 @@
+import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import * as WorkspaceActions from './workspaceActions.js';
 
 /**
  * Manages all HyperGnome keybindings:
@@ -51,6 +54,37 @@ export class KeybindingManager {
         this._addBinding('tile-resize-down', () => this._tilingManager.resizeDirection('down'));
         this._addBinding('tile-resize-up', () => this._tilingManager.resizeDirection('up'));
         this._addBinding('tile-resize-right', () => this._tilingManager.resizeDirection('right'));
+
+        // -- Custom keybindings (workspaces, Hyprland-style) --
+        const wm = global.workspace_manager;
+        const isDynamic = () => {
+            try {
+                const mutter = new Gio.Settings({schema_id: 'org.gnome.mutter'});
+                return mutter.get_boolean('dynamic-workspaces');
+            } catch (_e) {
+                return true;
+            }
+        };
+        const now = () => global.get_current_time();
+
+        for (let i = 1; i <= 10; i++) {
+            const target = i - 1; // 0-based
+            this._addBinding(`tile-workspace-${i}`,
+                () => WorkspaceActions.switchToWorkspace(wm, target, isDynamic(), now()));
+            this._addBinding(`tile-move-to-workspace-${i}`,
+                () => WorkspaceActions.moveActiveToWorkspace(
+                    wm, global.display.focus_window, target, isDynamic(), now()));
+        }
+        this._addBinding('tile-workspace-prev',
+            () => WorkspaceActions.cycleWorkspace(wm, -1, now()));
+        this._addBinding('tile-workspace-next',
+            () => WorkspaceActions.cycleWorkspace(wm, +1, now()));
+        this._addBinding('tile-move-workspace-prev',
+            () => WorkspaceActions.moveActiveAndCycle(
+                wm, global.display.focus_window, -1, now()));
+        this._addBinding('tile-move-workspace-next',
+            () => WorkspaceActions.moveActiveAndCycle(
+                wm, global.display.focus_window, +1, now()));
 
         // -- Override conflicting GNOME keybindings --
 
