@@ -658,13 +658,24 @@ export class BorderManager {
             const dur = this._settings.get_int('animation-duration');
 
             if (this._isGradient) {
-                // For gradient mode, ease position/size directly
+                // For gradient mode, ease position/size directly.  We
+                // also ease scale, translation and opacity back to
+                // canonical — remove_all_transitions cuts any in-flight
+                // pulse or slide-in mid-property, which would otherwise
+                // leave the border drawn at e.g. scale 1.03 (looks like
+                // the border has grown bigger than the window) for the
+                // rest of the resize.
                 this._border.remove_all_transitions();
                 this._border.ease({
                     x: rect.x - bw,
                     y: rect.y - bw,
                     width: rect.width + bw * 2,
                     height: rect.height + bw * 2,
+                    scale_x: 1,
+                    scale_y: 1,
+                    translation_x: 0,
+                    translation_y: 0,
+                    opacity: 255,
                     duration: dur,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 });

@@ -147,11 +147,21 @@ export function animateWindow(metaWindow, targetRect, durationMs) {
 export function animateBorder(border, frameRect, borderWidth, durationMs) {
     border.remove_all_transitions();
 
+    // Also ease scale, translation and opacity back to canonical: the
+    // remove_all_transitions above cuts any in-flight pulse or slide-in,
+    // which would otherwise leave the border at scale != 1 or
+    // translation != 0 for the duration of this resize (visible as the
+    // border being "bigger" or offset from the window).
     border.ease({
         x: frameRect.x - borderWidth,
         y: frameRect.y - borderWidth,
         width: frameRect.width + borderWidth * 2,
         height: frameRect.height + borderWidth * 2,
+        scale_x: 1,
+        scale_y: 1,
+        translation_x: 0,
+        translation_y: 0,
+        opacity: 255,
         duration: durationMs ?? DEFAULT_DURATION_MS,
         mode: ANIM_MODE,
     });
