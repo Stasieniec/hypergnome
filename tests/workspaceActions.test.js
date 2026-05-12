@@ -156,6 +156,7 @@ describe('cycleWorkspace', () => {
         const wm = mockWsManager({nWorkspaces: 3, activeIndex: 0, dynamic: false});
         cycleWorkspace(wm, -1);
         assert.deepEqual(wm._activated, []);
+        assert.deepEqual(wm._appended, []);
     });
 });
 
@@ -179,6 +180,22 @@ describe('moveActiveAndCycle', () => {
     it('no-op when no focused window', () => {
         const wm = mockWsManager({nWorkspaces: 3, activeIndex: 1, dynamic: false});
         moveActiveAndCycle(wm, null, +1);
+        assert.deepEqual(wm._activated, []);
+    });
+
+    it('moves window backward when not at first workspace', () => {
+        const wm = mockWsManager({nWorkspaces: 4, activeIndex: 2, dynamic: false});
+        const win = mockWindow();
+        moveActiveAndCycle(wm, win, -1);
+        assert.deepEqual(win._moves, [{index: 1, append: false}]);
+        assert.deepEqual(wm._activated, [1]);
+    });
+
+    it('no-op when at first workspace moving backward', () => {
+        const wm = mockWsManager({nWorkspaces: 3, activeIndex: 0, dynamic: false});
+        const win = mockWindow();
+        moveActiveAndCycle(wm, win, -1);
+        assert.deepEqual(win._moves, []);
         assert.deepEqual(wm._activated, []);
     });
 });
