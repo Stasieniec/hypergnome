@@ -18,6 +18,7 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 
 - **Dwindle BSP tree** auto-tiling with per-workspace, per-monitor trees
 - **Hyprland-style keybindings** (vim keys + arrow keys for focus/move/resize)
+- **Hyprland-style workspace switching** (`Super+1..0`, `Super+Shift+1..0` to move window; cycle with `Super+[/]`)
 - **Tiled window resize** via keybindings and mouse drag
 - **Multi-monitor support** (move/focus windows across monitors)
 - **Configurable inner/outer gaps**
