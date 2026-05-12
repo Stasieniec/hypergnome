@@ -122,6 +122,14 @@ export class KeybindingManager {
         this._overrideBinding('move-to-monitor-down', () => {
             this._tilingManager.moveDirection('down');
         });
+
+        // Super+1..9 is GNOME's switch-to-application-N — conflicts with our
+        // tile-workspace-N bindings. Suppress with a no-op handler.
+        for (let i = 1; i <= 9; i++) {
+            this._overrideBinding(`switch-to-application-${i}`, () => {
+                // Swallowed — our tile-workspace-N handles Super+N
+            });
+        }
     }
 
     disable() {
