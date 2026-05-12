@@ -274,5 +274,152 @@
       <description>Grow the focused window to the right</description>
     </key>
 
+    <!-- Workspace switching (Hyprland-style) -->
+    <key name="tile-workspace-1" type="as">
+      <default><![CDATA[['<Super>1']]]></default>
+      <summary>Switch to workspace 1</summary>
+      <description>Activate workspace 1 (Hyprland-style direct workspace jump)</description>
+    </key>
+
+    <key name="tile-workspace-2" type="as">
+      <default><![CDATA[['<Super>2']]]></default>
+      <summary>Switch to workspace 2</summary>
+      <description>Activate workspace 2</description>
+    </key>
+
+    <key name="tile-workspace-3" type="as">
+      <default><![CDATA[['<Super>3']]]></default>
+      <summary>Switch to workspace 3</summary>
+      <description>Activate workspace 3</description>
+    </key>
+
+    <key name="tile-workspace-4" type="as">
+      <default><![CDATA[['<Super>4']]]></default>
+      <summary>Switch to workspace 4</summary>
+      <description>Activate workspace 4</description>
+    </key>
+
+    <key name="tile-workspace-5" type="as">
+      <default><![CDATA[['<Super>5']]]></default>
+      <summary>Switch to workspace 5</summary>
+      <description>Activate workspace 5</description>
+    </key>
+
+    <key name="tile-workspace-6" type="as">
+      <default><![CDATA[['<Super>6']]]></default>
+      <summary>Switch to workspace 6</summary>
+      <description>Activate workspace 6</description>
+    </key>
+
+    <key name="tile-workspace-7" type="as">
+      <default><![CDATA[['<Super>7']]]></default>
+      <summary>Switch to workspace 7</summary>
+      <description>Activate workspace 7</description>
+    </key>
+
+    <key name="tile-workspace-8" type="as">
+      <default><![CDATA[['<Super>8']]]></default>
+      <summary>Switch to workspace 8</summary>
+      <description>Activate workspace 8</description>
+    </key>
+
+    <key name="tile-workspace-9" type="as">
+      <default><![CDATA[['<Super>9']]]></default>
+      <summary>Switch to workspace 9</summary>
+      <description>Activate workspace 9</description>
+    </key>
+
+    <key name="tile-workspace-10" type="as">
+      <default><![CDATA[['<Super>0']]]></default>
+      <summary>Switch to workspace 10</summary>
+      <description>Activate workspace 10</description>
+    </key>
+
+    <!-- Move active window to workspace (Hyprland-style) -->
+    <key name="tile-move-to-workspace-1" type="as">
+      <default><![CDATA[['<Super><Shift>1']]]></default>
+      <summary>Move window to workspace 1</summary>
+      <description>Move the focused window to workspace 1</description>
+    </key>
+
+    <key name="tile-move-to-workspace-2" type="as">
+      <default><![CDATA[['<Super><Shift>2']]]></default>
+      <summary>Move window to workspace 2</summary>
+      <description>Move the focused window to workspace 2</description>
+    </key>
+
+    <key name="tile-move-to-workspace-3" type="as">
+      <default><![CDATA[['<Super><Shift>3']]]></default>
+      <summary>Move window to workspace 3</summary>
+      <description>Move the focused window to workspace 3</description>
+    </key>
+
+    <key name="tile-move-to-workspace-4" type="as">
+      <default><![CDATA[['<Super><Shift>4']]]></default>
+      <summary>Move window to workspace 4</summary>
+      <description>Move the focused window to workspace 4</description>
+    </key>
+
+    <key name="tile-move-to-workspace-5" type="as">
+      <default><![CDATA[['<Super><Shift>5']]]></default>
+      <summary>Move window to workspace 5</summary>
+      <description>Move the focused window to workspace 5</description>
+    </key>
+
+    <key name="tile-move-to-workspace-6" type="as">
+      <default><![CDATA[['<Super><Shift>6']]]></default>
+      <summary>Move window to workspace 6</summary>
+      <description>Move the focused window to workspace 6</description>
+    </key>
+
+    <key name="tile-move-to-workspace-7" type="as">
+      <default><![CDATA[['<Super><Shift>7']]]></default>
+      <summary>Move window to workspace 7</summary>
+      <description>Move the focused window to workspace 7</description>
+    </key>
+
+    <key name="tile-move-to-workspace-8" type="as">
+      <default><![CDATA[['<Super><Shift>8']]]></default>
+      <summary>Move window to workspace 8</summary>
+      <description>Move the focused window to workspace 8</description>
+    </key>
+
+    <key name="tile-move-to-workspace-9" type="as">
+      <default><![CDATA[['<Super><Shift>9']]]></default>
+      <summary>Move window to workspace 9</summary>
+      <description>Move the focused window to workspace 9</description>
+    </key>
+
+    <key name="tile-move-to-workspace-10" type="as">
+      <default><![CDATA[['<Super><Shift>0']]]></default>
+      <summary>Move window to workspace 10</summary>
+      <description>Move the focused window to workspace 10</description>
+    </key>
+
+    <!-- Cycle workspaces (i3/sway/Hyprland convention) -->
+    <key name="tile-workspace-prev" type="as">
+      <default><![CDATA[['<Super>bracketleft']]]></default>
+      <summary>Cycle to previous workspace</summary>
+      <description>Activate the workspace before the current one (clamps at the first workspace)</description>
+    </key>
+
+    <key name="tile-workspace-next" type="as">
+      <default><![CDATA[['<Super>bracketright']]]></default>
+      <summary>Cycle to next workspace</summary>
+      <description>Activate the workspace after the current one (clamps at the last workspace)</description>
+    </key>
+
+    <key name="tile-move-workspace-prev" type="as">
+      <default><![CDATA[['<Super><Shift>bracketleft']]]></default>
+      <summary>Move window to previous workspace</summary>
+      <description>Move the focused window to the previous workspace and follow</description>
+    </key>
+
+    <key name="tile-move-workspace-next" type="as">
+      <default><![CDATA[['<Super><Shift>bracketright']]]></default>
+      <summary>Move window to next workspace</summary>
+      <description>Move the focused window to the next workspace and follow</description>
+    </key>
+
   </schema>
 </schemalist>
