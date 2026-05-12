@@ -122,4 +122,12 @@ describe('moveActiveToWorkspace', () => {
         assert.deepEqual(win._moves, [{index: 4, append: false}]);
         assert.ok(wm._activated.includes(4));
     });
+
+    it('ignores negative index', () => {
+        const wm = mockWsManager({nWorkspaces: 3, activeIndex: 1, dynamic: false});
+        const win = mockWindow();
+        moveActiveToWorkspace(wm, win, -1, /*dynamic=*/false);
+        assert.deepEqual(win._moves, []);
+        assert.deepEqual(wm._activated, []);
+    });
 });

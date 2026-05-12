@@ -53,14 +53,14 @@ export function moveActiveToWorkspace(workspaceManager, focusedWindow, index, dy
     const n = workspaceManager.get_n_workspaces();
     if (index >= n) {
         if (!dynamic) return;
-        // Append placeholders until index exists, without activating intermediates.
+        // Append without activating: activation happens after the window has
+        // been moved, otherwise the target workspace would become active
+        // before the window arrives there.
         let current = n;
-        while (current < index) {
+        while (current <= index) {
             workspaceManager.append_new_workspace(false, time);
             current += 1;
         }
-        // Final workspace at exactly `index`.
-        workspaceManager.append_new_workspace(false, time);
     }
     focusedWindow.change_workspace_by_index(index, false);
     const ws = workspaceManager.get_workspace_by_index(index);
