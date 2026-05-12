@@ -75,6 +75,85 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
         settings.bind('resize-step', resizeStepRow, 'value',
             Gio.SettingsBindFlags.DEFAULT);
 
+        // Layout group
+        const layoutGroup = new Adw.PreferencesGroup({
+            title: _('Layout'),
+            description: _('Choose between dwindle (BSP) and master/stack tiling'),
+        });
+        generalPage.add(layoutGroup);
+
+        // Layout mode dropdown
+        const layoutModel = new Gtk.StringList();
+        layoutModel.append(_('Dwindle (BSP)'));
+        layoutModel.append(_('Master / Stack'));
+        const LAYOUT_VALUES = ['dwindle', 'master'];
+
+        const layoutRow = new Adw.ComboRow({
+            title: _('Layout Mode'),
+            subtitle: _('Dwindle splits each new window in half; master gives one window a fixed share with the rest stacked'),
+            model: layoutModel,
+        });
+        layoutRow.set_selected(
+            LAYOUT_VALUES.indexOf(settings.get_string('layout-mode')));
+        layoutRow.connect('notify::selected', () => {
+            settings.set_string('layout-mode', LAYOUT_VALUES[layoutRow.get_selected()]);
+        });
+        settings.connect('changed::layout-mode', () => {
+            const idx = LAYOUT_VALUES.indexOf(settings.get_string('layout-mode'));
+            if (layoutRow.get_selected() !== idx)
+                layoutRow.set_selected(idx);
+        });
+        layoutGroup.add(layoutRow);
+
+        // Master orientation dropdown
+        const orientationModel = new Gtk.StringList();
+        for (const lbl of [_('Left'), _('Right'), _('Top'), _('Bottom')])
+            orientationModel.append(lbl);
+        const ORIENT_VALUES = ['left', 'right', 'top', 'bottom'];
+
+        const orientationRow = new Adw.ComboRow({
+            title: _('Master Orientation'),
+            subtitle: _('Which side of the screen the master window occupies'),
+            model: orientationModel,
+        });
+        orientationRow.set_selected(
+            ORIENT_VALUES.indexOf(settings.get_string('master-orientation')));
+        orientationRow.connect('notify::selected', () => {
+            settings.set_string('master-orientation',
+                ORIENT_VALUES[orientationRow.get_selected()]);
+        });
+        settings.connect('changed::master-orientation', () => {
+            const idx = ORIENT_VALUES.indexOf(settings.get_string('master-orientation'));
+            if (orientationRow.get_selected() !== idx)
+                orientationRow.set_selected(idx);
+        });
+        layoutGroup.add(orientationRow);
+
+        // Master area ratio slider
+        const masterFactorRow = new Adw.SpinRow({
+            title: _('Master Area Ratio'),
+            subtitle: _('Fraction of the work area used by the master window'),
+            adjustment: new Gtk.Adjustment({
+                lower: 0.1,
+                upper: 0.9,
+                step_increment: 0.05,
+                page_increment: 0.1,
+            }),
+            digits: 2,
+        });
+        layoutGroup.add(masterFactorRow);
+        settings.bind('master-factor', masterFactorRow, 'value',
+            Gio.SettingsBindFlags.DEFAULT);
+
+        // Disable orientation + ratio when not in master mode
+        const updateSensitivity = () => {
+            const isMaster = settings.get_string('layout-mode') === 'master';
+            orientationRow.set_sensitive(isMaster);
+            masterFactorRow.set_sensitive(isMaster);
+        };
+        updateSensitivity();
+        settings.connect('changed::layout-mode', updateSensitivity);
+
         // Float exceptions group
         const floatGroup = new Adw.PreferencesGroup({
             title: _('Float Exceptions'),

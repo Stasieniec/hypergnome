@@ -38,6 +38,14 @@ export class KeybindingManager {
         this._addBinding('tile-toggle-split', () => this._tilingManager.toggleSplit());
         this._addBinding('tile-equalize', () => this._tilingManager.equalize());
 
+        // -- Custom keybindings (master layout) --
+        this._addBinding('tile-swap-master',
+            () => this._tilingManager.swapWithMaster());
+        this._addBinding('tile-focus-master',
+            () => this._tilingManager.focusMaster());
+        this._addBinding('tile-cycle-orientation',
+            () => this._tilingManager.cycleOrientation());
+
         // -- Custom keybindings (resize window) --
         this._addBinding('tile-resize-left', () => this._tilingManager.resizeDirection('left'));
         this._addBinding('tile-resize-down', () => this._tilingManager.resizeDirection('down'));

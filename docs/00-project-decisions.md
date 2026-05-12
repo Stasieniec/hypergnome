@@ -9,7 +9,7 @@ and Hyprland-style keybindings.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Tiling layout | **Dwindle (BSP tree)** | Hyprland's default. Auto-tiles with no user thought. Pluggable architecture so master-stack can be added later. |
+| Tiling layout | **Dwindle (BSP) + Master/Stack** | Dwindle is the default. Master layout reuses the BSP tree by enforcing a canonical shape (root mfact fork + right-leaning stack chain). Switchable globally via `layout-mode`. |
 | GNOME keybind handling | **Override selectively** | Use `Meta.keybindings_set_custom_handler()` to intercept conflicting GNOME keybinds. Restore originals in `disable()`. |
 | Target GNOME versions | **46+** | Covers Ubuntu 24.04 LTS. Uses ESM module system. Need minor compat shims for 48/49 breaking changes. |
 | Animation approach | **Clutter.ease() only** (initially) | Built-in easing with 41 modes. GLSL shaders for later phases. |

@@ -14,6 +14,29 @@ Split direction determined by aspect ratio: W > H = side-by-side, H > W = top-an
 | `no_gaps_when_only` | false | Remove gaps when only one window |
 | `special_scale_factor` | 0.8 | Scratchpad window scale |
 
+## Master Layout
+
+Single master window + stack of remaining windows. Orientation configurable
+(master on left / right / top / bottom).
+
+### Implemented
+| Setting / action | HyperGnome | Notes |
+|---|---|---|
+| Master area ratio | `master-factor` (default 0.55) | Slider in prefs; per-tree splitRatio resizable via keybind / drag |
+| Orientation | `master-orientation` (left / right / top / bottom) | Cycle keybind + dropdown |
+| Swap with master | `tile-swap-master` (Super+Return) | |
+| Focus master | `tile-focus-master` (Super+M) | |
+| Cycle orientation | `tile-cycle-orientation` (unbound), also Super+P in master mode | Cycles left → right → top → bottom |
+| mfact resize | Existing `tile-resize-*` keybinds and mouse drag | Hits root fork in master mode |
+| New window placement | Always to stack | Hyprland's `new_status = slave` default |
+
+### Deferred
+- Multiple masters (`nmaster`, `addmaster`/`removemaster`)
+- Center-master orientation with two stacks
+- Per-workspace layout selection
+- Persistent custom stack-slot ratios (auto-rebalanced on add/remove today)
+- `new_on_top` (always append to bottom of stack today)
+
 ## Default Keybindings
 
 ### Window Management

@@ -84,6 +84,8 @@ export function findAdjacentMonitor(fromMonIndex, direction) {
  * @param {Function} ctx.applyLayout
  * @param {Function} ctx.setMovingWindow - guard setter to suppress signal handlers
  * @param {Gio.Settings} ctx.settings
+ * @param {Function} ctx.treeInsert - Layout-aware tree insert dispatch
+ * @param {Function} ctx.treeRemove - Layout-aware tree remove dispatch
  */
 export function moveWindowToMonitor(metaWindow, direction, ctx) {
     const fromMonIndex = metaWindow.get_monitor();
@@ -97,12 +99,13 @@ export function moveWindowToMonitor(metaWindow, direction, ctx) {
 
     const wsIndex = ws.index();
 
-    // Remove from source tree
+    // Remove from source tree (layout-aware: master mode handles
+    // master-promotion / stack rebalance)
     const sourceTree = ctx.findTreeContaining(metaWindow);
     if (sourceTree)
-        sourceTree.remove(metaWindow);
+        ctx.treeRemove(sourceTree, metaWindow);
 
-    // Insert into target tree
+    // Insert into target tree (layout-aware)
     const targetTree = ctx.getTree(wsIndex, targetMon);
     const workArea = ws.get_work_area_for_monitor(targetMon);
     const defaultRatio = ctx.settings.get_double('split-ratio');
@@ -112,7 +115,7 @@ export function moveWindowToMonitor(metaWindow, direction, ctx) {
     if (lastLeaf)
         nodeRect = computeNodeRect(lastLeaf, workArea);
 
-    targetTree.insert(metaWindow, null, defaultRatio, nodeRect);
+    ctx.treeInsert(targetTree, metaWindow, null, defaultRatio, nodeRect);
 
     // Move using move_frame + move_resize_frame — more reliable than
     // move_to_monitor because it forces an immediate coordinate change.
