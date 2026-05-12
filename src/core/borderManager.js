@@ -306,6 +306,25 @@ export class BorderManager {
         this._windowSignals.connect(win, 'size-changed',
             () => this._updateGeometryAnimated());
 
+        // The active border must only be visible when the focused window is
+        // actually on the active workspace.  Two cases can briefly violate
+        // that during a workspace switch:
+        //
+        // 1. Keybind path (Mutter activate(): focus changes first, then the
+        //    active workspace updates).  Here we hide momentarily and the
+        //    synchronously-following _onWorkspaceChanged restores + slides
+        //    the border — same JS task = no paint between = no flicker.
+        //
+        // 2. Touchpad swipe (gesture commit can fire active-workspace-
+        //    changed before focus catches up).  Here focus may still point
+        //    at a window on a now-inactive workspace.  Hiding stops the
+        //    gradient outline from briefly appearing at the previously
+        //    focused window's screen coords on the new workspace.
+        if (!this._isFocusOnActiveWs()) {
+            this._border.hide();
+            return;
+        }
+
         // Snap geometry on focus switch
         this._updateGeometry();
         this._restack();
@@ -365,38 +384,62 @@ export class BorderManager {
     }
 
     /**
-     * Slide the border in from below alongside the windows on the newly
-     * active workspace.  Mutter typically fires notify::focus-window before
-     * active-workspace-changed during ws.activate(), so by the time we
-     * reach this handler _focusWindow already points at the new window —
-     * we just apply the same translate-and-fade pattern animator.js uses
-     * for window actors.  When focus instead settles *after* the workspace
-     * change, _onFocusChanged's _mirrorActorSlideIn handles it.
+     * @returns {boolean} true when the currently tracked focus window is on
+     * the active workspace.  Used as the invariant gating border visibility:
+     * the border must only be shown when its target window is actually on
+     * the visible workspace.
+     */
+    _isFocusOnActiveWs() {
+        try {
+            if (!this._focusWindow)
+                return false;
+            const ws = this._focusWindow.get_workspace();
+            if (!ws)
+                return false;
+            return ws.index() ===
+                global.workspace_manager.get_active_workspace_index();
+        } catch (_e) {
+            return false;
+        }
+    }
+
+    /**
+     * Restore + slide the border alongside the windows on the newly active
+     * workspace.  This is the show side of the visibility invariant:
+     *
+     * - Keybind path: _onFocusChanged ran first and (because the active
+     *   workspace hadn't updated yet) hid the border.  In the same JS task
+     *   we re-show and slide it.
+     *
+     * - Touchpad path: focus may still point at the previous workspace's
+     *   window when this fires.  In that case we keep the border hidden
+     *   and let the eventual notify::focus-window restore it (mirroring
+     *   the in-flight actor slide-in).
      */
     _onWorkspaceChanged() {
-        if (!this._settings || !this._border || !this._focusWindow)
-            return;
-        if (!this._settings.get_boolean('animation-enabled'))
+        if (!this._settings || !this._border)
             return;
 
-        try {
-            const activeIdx =
-                global.workspace_manager.get_active_workspace_index();
-            const ws = this._focusWindow.get_workspace();
-            if (!ws || ws.index() !== activeIdx)
-                return;
-        } catch (_e) {
+        if (!this._isFocusOnActiveWs()) {
+            this._border.hide();
             return;
         }
+
+        // _updateGeometry resets position, scale, translation and opacity
+        // — important if a prior pulse or slide-in was cut short and left
+        // the border off-canonical (e.g. scale != 1), and necessary here
+        // because we may have just been hidden by _onFocusChanged.
+        this._updateGeometry();
+        this._restack();
+        this._border.show();
+
+        if (!this._settings.get_boolean('animation-enabled'))
+            return;
 
         const dur = Math.round(
             this._settings.get_int('animation-duration') *
                 SLIDE_DURATION_MULTIPLIER,
         );
-        // _updateGeometry resets position, scale, translation and opacity
-        // — important if a prior pulse or slide-in was cut short and left
-        // the border off-canonical (e.g. scale != 1).
-        this._updateGeometry();
         this._border.translation_y = SLIDE_OFFSET_PX;
         this._border.opacity = 0;
         this._border.ease({
