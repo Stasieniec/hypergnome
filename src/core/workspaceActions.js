@@ -1,6 +1,11 @@
 /**
  * Workspace actions for HyperGnome's workspace keybindings.
  *
+ * This module contains only pure workspace switching operations — no window
+ * moves, no BSP tree manipulation. Window-move-to-workspace logic lives on
+ * TilingManager (moveActiveToWorkspace / moveActiveAndCycle) because it
+ * requires direct tree access and the _movingWindow guard pattern.
+ *
  * Pure-ish module: all dependencies (workspace manager, dynamic-workspaces
  * flag) are passed in, so this is unit-testable without a live GNOME shell.
  *
@@ -39,35 +44,6 @@ export function switchToWorkspace(workspaceManager, index, dynamic, time = 0) {
 }
 
 /**
- * Move the focused window to the given workspace and follow it there.
- *
- * @param {object} workspaceManager - Meta.WorkspaceManager (or mock)
- * @param {object|null} focusedWindow - Meta.Window or null
- * @param {number} index - 0-based target workspace
- * @param {boolean} dynamic - whether dynamic-workspaces is enabled
- * @param {number} [time] - Clutter event time
- */
-export function moveActiveToWorkspace(workspaceManager, focusedWindow, index, dynamic, time = 0) {
-    if (!focusedWindow) return;
-    if (index < 0) return;
-    const n = workspaceManager.get_n_workspaces();
-    if (index >= n) {
-        if (!dynamic) return;
-        // Append without activating: activation happens after the window has
-        // been moved, otherwise the target workspace would become active
-        // before the window arrives there.
-        let current = n;
-        while (current <= index) {
-            workspaceManager.append_new_workspace(false, time);
-            current += 1;
-        }
-    }
-    focusedWindow.change_workspace_by_index(index, false);
-    const ws = workspaceManager.get_workspace_by_index(index);
-    if (ws) ws.activate(time);
-}
-
-/**
  * Cycle to the previous (-1) or next (+1) workspace.
  *
  * Clamps at the boundaries — no wrap, no appending. Matches GNOME's existing
@@ -86,21 +62,3 @@ export function cycleWorkspace(workspaceManager, direction, time = 0) {
     if (ws) ws.activate(time);
 }
 
-/**
- * Move the focused window to the neighbouring workspace and follow it.
- *
- * @param {object} workspaceManager - Meta.WorkspaceManager (or mock)
- * @param {object|null} focusedWindow - Meta.Window or null
- * @param {number} direction - +1 (next) or -1 (prev)
- * @param {number} [time] - Clutter event time
- */
-export function moveActiveAndCycle(workspaceManager, focusedWindow, direction, time = 0) {
-    if (!focusedWindow) return;
-    const current = workspaceManager.get_active_workspace_index();
-    const target = current + direction;
-    if (target < 0) return;
-    if (target >= workspaceManager.get_n_workspaces()) return;
-    focusedWindow.change_workspace_by_index(target, false);
-    const ws = workspaceManager.get_workspace_by_index(target);
-    if (ws) ws.activate(time);
-}
