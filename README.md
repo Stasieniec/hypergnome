@@ -23,11 +23,10 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 - **Multi-monitor support** (move/focus windows across monitors)
 - **Configurable inner/outer gaps**
 - **Active window border** with animated gradient (rotating blue-green default)
-- **Focus pulse effect** (window + border scale on focus change)
+- **Focus pulse effect** (window + border scale on keybind-driven focus change)
 - **Dim inactive windows** (configurable desaturation)
 - **Smooth animations** with configurable speed
 - **Window open animations** (scale + fade)
-- **Workspace switch slide-in animation**
 - **Float exceptions** with WM_CLASS list (editable in preferences)
 - **Keybinding conflict detection** in preferences (shows overrides + system conflicts)
 - **GNOME 46–49 compatible** (single codebase)
