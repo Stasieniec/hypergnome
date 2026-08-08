@@ -1320,6 +1320,10 @@ export class TilingManager {
                 if ((isChildA && !isStartEdge) || (!isChildA && isStartEdge)) {
                     const forkRect = computeNodeRect(fork, workArea);
 
+                    // Avoid dividing by a zero-width/height fork (crashes Mutter).
+                    if (forkRect.width <= 0 || forkRect.height <= 0)
+                        return;
+
                     let newRatio;
                     if (splitDir === SplitDirection.HORIZONTAL) {
                         if (isChildA) {

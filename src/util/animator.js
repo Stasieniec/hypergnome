@@ -22,6 +22,13 @@ import {blockWindowSignals} from './windowBlock.js';
 const DEFAULT_DURATION_MS = 200;
 const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
 
+// A bad ratio upstream (e.g. division by a zero-size fork) can produce
+// NaN/Infinity here - move_frame() doesn't validate and crashes the shell.
+function _isValidRect(rect) {
+    return Number.isFinite(rect.x) && Number.isFinite(rect.y) &&
+        Number.isFinite(rect.width) && Number.isFinite(rect.height);
+}
+
 /**
  * Animate a window from its current position/size to a target rect.
  *
@@ -31,6 +38,12 @@ const ANIM_MODE = Clutter.AnimationMode.EASE_OUT_QUAD;
  * @param {number} [durationMs] - Animation duration in ms (default 200).
  */
 export function animateWindow(metaWindow, targetRect, durationMs) {
+    if (!_isValidRect(targetRect)) {
+        logError(new Error('HyperGnome: refusing to move window to invalid rect'),
+            JSON.stringify(targetRect));
+        return;
+    }
+
     const duration = durationMs ?? DEFAULT_DURATION_MS;
     const actor = metaWindow.get_compositor_private();
     if (!actor)
@@ -182,6 +195,12 @@ export function animateBorder(border, frameRect, borderWidth, durationMs) {
  * @param {{x: number, y: number, width: number, height: number}} targetRect
  */
 export function snapWindow(metaWindow, targetRect) {
+    if (!_isValidRect(targetRect)) {
+        logError(new Error('HyperGnome: refusing to move window to invalid rect'),
+            JSON.stringify(targetRect));
+        return;
+    }
+
     const actor = metaWindow.get_compositor_private();
     if (actor) {
         actor.remove_all_transitions();
