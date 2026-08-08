@@ -29,7 +29,7 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 - **Window open animations** (scale + fade)
 - **Float exceptions** with WM_CLASS list (editable in preferences)
 - **Keybinding conflict detection** in preferences (shows overrides + system conflicts)
-- **GNOME 46–49 compatible** (single codebase)
+- **GNOME 46–50 compatible** (single codebase)
 - **Panel indicator** with tiling toggle
 - **Full preferences window** with color pickers, float list editor, and all settings
 
@@ -58,12 +58,17 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 
 ### GNOME Integration
 
-HyperGnome overrides several GNOME shortcuts that conflict with its defaults — `Super+H` (minimize), `Super+Left/Right` (half-tile), `Super+Down` (unmaximize), `Super+Shift+Arrows` (move-to-monitor), and `Super+1..9` (favourite-app launch). This is on by default. To disable, open the extension preferences → **Keybindings** → **GNOME Integration** → **Override Conflicting GNOME Shortcuts**. When off, the conflicting GNOME shortcuts keep their native meaning and you may need to rebind HyperGnome's defaults manually. All overrides are fully restored when the extension is disabled. The **Keybindings** tab also surfaces any detected conflicts with your other system shortcuts.
+HyperGnome overrides several GNOME shortcuts that conflict with its defaults - `Super+H` (minimize), `Super+Left/Right` (half-tile), `Super+Down` (unmaximize), `Super+Shift+Arrows` (move-to-monitor), `Super+1..9` (favourite-app launch), and GNOME's own native `Super+1..10` / `Super+Shift+1..10` (switch/move to workspace).
+This is on by default.
+To disable, open the extension preferences → **Keybindings** → **GNOME Integration** → **Override Conflicting GNOME Shortcuts**.
+When off, the conflicting GNOME shortcuts keep their native meaning and you may need to rebind HyperGnome's defaults manually.
+All overrides are fully restored when the extension is disabled.
+The **Keybindings** tab also surfaces any detected conflicts with your other system shortcuts - this does not extend to other extensions (e.g. Caffeine) that grab the same accelerator, since GNOME has no API for one extension to take over another extension's keybinding grab; if you hit that, rebind one side manually.
 
 ## Requirements
 
 - GNOME Shell 46 or later (Ubuntu 24.04+)
-- Works on both Wayland and X11
+- Works on both Wayland and X11 on GNOME 46–49; GNOME 50 removed X11 support, so 50+ is Wayland-only
 
 ## Installation
 
@@ -81,8 +86,8 @@ make install
 
 This symlinks the extension to `~/.local/share/gnome-shell/extensions/`. Then:
 
-- **On X11:** Press `Alt+F2`, type `r`, press Enter to restart GNOME Shell.
-- **On Wayland:** Log out and log back in.
+- **On X11 (GNOME 46–49 only):** Press `Alt+F2`, type `r`, press Enter to restart GNOME Shell.
+- **On Wayland (all versions; the only option on GNOME 50+):** Log out and log back in.
 
 Then enable the extension:
 ```bash
@@ -131,7 +136,7 @@ make schemas    # Recompile schemas only after changing .gschema.xml
 
 ### Testing
 
-**X11:** `Alt+F2` → `r` → Enter
+**X11 (GNOME 46–49 only):** `Alt+F2` → `r` → Enter
 
 **Wayland nested session:**
 ```bash

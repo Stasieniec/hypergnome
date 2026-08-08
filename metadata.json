@@ -3,7 +3,7 @@
     "name": "HyperGnome",
     "description": "Hyprland-style tiling window management for GNOME. Automatic dwindle tiling, smooth animations, gaps, active window borders, and Hyprland keybindings.",
     "version": 3,
-    "shell-version": ["46", "47", "48", "49"],
+    "shell-version": ["46", "47", "48", "49", "50"],
     "url": "https://github.com/Stasieniec/hypergnome",
     "settings-schema": "org.gnome.shell.extensions.hypergnome",
     "gettext-domain": "hypergnome"

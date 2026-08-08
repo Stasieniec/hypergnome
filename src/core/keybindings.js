@@ -110,22 +110,14 @@ export class KeybindingManager {
 
         // -- Custom keybindings (workspaces, Hyprland-style) --
         const wm = global.workspace_manager;
-        const mutterSettings = this._mutterSettings;
-        const isDynamic = () => {
-            try {
-                return mutterSettings.get_boolean('dynamic-workspaces');
-            } catch (_e) {
-                return true;
-            }
-        };
         const now = () => global.get_current_time();
 
         for (let i = 1; i <= 10; i++) {
             const target = i - 1;
             this._addBinding(`tile-workspace-${i}`,
-                () => WorkspaceActions.switchToWorkspace(wm, target, isDynamic(), now()));
+                () => WorkspaceActions.switchToWorkspace(wm, target, this._isDynamicWorkspaces(), now()));
             this._addBinding(`tile-move-to-workspace-${i}`,
-                () => this._tilingManager.moveActiveToWorkspace(target, isDynamic()));
+                () => this._tilingManager.moveActiveToWorkspace(target, this._isDynamicWorkspaces()));
         }
         this._addBinding('tile-workspace-prev',
             () => WorkspaceActions.cycleWorkspace(wm, -1, now()));
@@ -179,6 +171,35 @@ export class KeybindingManager {
         // accelerator (Mutter still grabs Super+N for it), so we clear the
         // accelerator and stash the original for restoration on disable.
         this._clearAppAccelerators();
+
+        // GNOME also has its own native switch-to-workspace-N / move-to-
+        // workspace-N actions. If the user has those bound to the same
+        // accelerator as our tile-workspace-N defaults (Super+N /
+        // Super+Shift+N), whichever one grabs the accelerator first wins
+        // arbitrarily - so route the native actions through our own
+        // handlers to make sure ours always wins.
+        const wsWm = global.workspace_manager;
+        for (let i = 1; i <= 10; i++) {
+            const target = i - 1;
+            this._overrideBinding(`switch-to-workspace-${i}`, () => {
+                WorkspaceActions.switchToWorkspace(
+                    wsWm, target, this._isDynamicWorkspaces(), global.get_current_time());
+            });
+            this._overrideBinding(`move-to-workspace-${i}`, () => {
+                this._tilingManager.moveActiveToWorkspace(target, this._isDynamicWorkspaces());
+            });
+        }
+    }
+
+    /**
+     * @returns {boolean} whether GNOME's dynamic-workspaces mode is on
+     */
+    _isDynamicWorkspaces() {
+        try {
+            return this._mutterSettings.get_boolean('dynamic-workspaces');
+        } catch (_e) {
+            return true;
+        }
     }
 
     /**

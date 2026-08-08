@@ -84,7 +84,7 @@ One complete, logical change = one commit. Examples:
 ## Development Setup
 - Extension UUID: `hypergnome@hypergnome.dev`
 - Dev install: symlink to `~/.local/share/gnome-shell/extensions/hypergnome@hypergnome.dev`
-- Test on X11: `Alt+F2 → r` to restart shell
+- Test on X11 (GNOME 46–49 only; GNOME 50 removed X11 support): `Alt+F2 → r` to restart shell
 - Test on Wayland: nested session via `dbus-run-session -- gnome-shell --nested --wayland`
 - Enable: `gnome-extensions enable hypergnome@hypergnome.dev`
 - Logs: `journalctl -f -o cat /usr/bin/gnome-shell`
