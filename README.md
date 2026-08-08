@@ -29,7 +29,7 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 - **Window open animations** (scale + fade)
 - **Float exceptions** with WM_CLASS list (editable in preferences)
 - **Keybinding conflict detection** in preferences (shows overrides + system conflicts)
-- **GNOME 46–49 compatible** (single codebase)
+- **GNOME 46–50 compatible** (single codebase)
 - **Panel indicator** with tiling toggle
 - **Full preferences window** with color pickers, float list editor, and all settings
 
@@ -63,7 +63,7 @@ HyperGnome overrides several GNOME shortcuts that conflict with its defaults —
 ## Requirements
 
 - GNOME Shell 46 or later (Ubuntu 24.04+)
-- Works on both Wayland and X11
+- Works on both Wayland and X11 on GNOME 46–49; GNOME 50 removed X11 support, so 50+ is Wayland-only
 
 ## Installation
 
@@ -81,8 +81,8 @@ make install
 
 This symlinks the extension to `~/.local/share/gnome-shell/extensions/`. Then:
 
-- **On X11:** Press `Alt+F2`, type `r`, press Enter to restart GNOME Shell.
-- **On Wayland:** Log out and log back in.
+- **On X11 (GNOME 46–49 only):** Press `Alt+F2`, type `r`, press Enter to restart GNOME Shell.
+- **On Wayland (all versions; the only option on GNOME 50+):** Log out and log back in.
 
 Then enable the extension:
 ```bash
@@ -131,7 +131,7 @@ make schemas    # Recompile schemas only after changing .gschema.xml
 
 ### Testing
 
-**X11:** `Alt+F2` → `r` → Enter
+**X11 (GNOME 46–49 only):** `Alt+F2` → `r` → Enter
 
 **Wayland nested session:**
 ```bash
