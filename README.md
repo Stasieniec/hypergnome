@@ -58,7 +58,12 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 
 ### GNOME Integration
 
-HyperGnome overrides several GNOME shortcuts that conflict with its defaults — `Super+H` (minimize), `Super+Left/Right` (half-tile), `Super+Down` (unmaximize), `Super+Shift+Arrows` (move-to-monitor), and `Super+1..9` (favourite-app launch). This is on by default. To disable, open the extension preferences → **Keybindings** → **GNOME Integration** → **Override Conflicting GNOME Shortcuts**. When off, the conflicting GNOME shortcuts keep their native meaning and you may need to rebind HyperGnome's defaults manually. All overrides are fully restored when the extension is disabled. The **Keybindings** tab also surfaces any detected conflicts with your other system shortcuts.
+HyperGnome overrides several GNOME shortcuts that conflict with its defaults - `Super+H` (minimize), `Super+Left/Right` (half-tile), `Super+Down` (unmaximize), `Super+Shift+Arrows` (move-to-monitor), `Super+1..9` (favourite-app launch), and GNOME's own native `Super+1..10` / `Super+Shift+1..10` (switch/move to workspace).
+This is on by default.
+To disable, open the extension preferences → **Keybindings** → **GNOME Integration** → **Override Conflicting GNOME Shortcuts**.
+When off, the conflicting GNOME shortcuts keep their native meaning and you may need to rebind HyperGnome's defaults manually.
+All overrides are fully restored when the extension is disabled.
+The **Keybindings** tab also surfaces any detected conflicts with your other system shortcuts - this does not extend to other extensions (e.g. Caffeine) that grab the same accelerator, since GNOME has no API for one extension to take over another extension's keybinding grab; if you hit that, rebind one side manually.
 
 ## Requirements
 
