@@ -229,12 +229,14 @@ export class KeybindingManager {
 
     _connectToggleListener() {
         this._settingsChangedId = this._settings.connect(
-            'changed::override-gnome-shortcuts',
-            () => {
+            'changed',
+            (_settings, key) => {
+                if (key !== 'override-gnome-shortcuts' && !key.startsWith('tile-'))
+                    return;
                 try {
                     this._reloadBindings();
                 } catch (e) {
-                    logError(e, 'HyperGnome: failed to reload bindings on toggle change');
+                    logError(e, 'HyperGnome: failed to reload bindings on settings change');
                 }
             });
     }

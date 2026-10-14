@@ -30,6 +30,9 @@ enable:
 disable:
 	gnome-extensions disable $(UUID)
 
+prefs:
+	gnome-extensions prefs $(UUID)
+
 logs:
 	journalctl -f -o cat /usr/bin/gnome-shell
 
