@@ -28,6 +28,7 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 - **Smooth animations** with configurable speed
 - **Window open animations** (scale + fade)
 - **Float exceptions** with WM_CLASS list (editable in preferences)
+- **Editable keybindings** in preferences (multi-shortcut support, reset to defaults)
 - **Keybinding conflict detection** in preferences (shows overrides + system conflicts)
 - **GNOME 46–49 compatible** (single codebase)
 - **Panel indicator** with tiling toggle
@@ -111,7 +112,7 @@ Open preferences from the Extensions app, or:
 gnome-extensions prefs hypergnome@hypergnome.dev
 ```
 
-Settings include: gaps, border colors, gradient speed, animation duration, dim inactive, focus pulse, float exceptions, and more.
+Settings include: gaps, border colors, gradient speed, animation duration, dim inactive, focus pulse, float exceptions, HyperGnome keybindings, and more.
 
 ## Development
 

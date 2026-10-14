@@ -1,6 +1,7 @@
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences, gettext as _}
@@ -347,7 +348,7 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
         });
         window.add(keybindingsPage);
 
-        this._buildKeybindingsPage(keybindingsPage, settings);
+        this._buildKeybindingsPage(keybindingsPage, settings, window);
 
         // Keep settings alive for the window lifetime
         window._settings = settings;
@@ -477,7 +478,7 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
     // Keybindings page
     // =========================================================================
 
-    _buildKeybindingsPage(page, settings) {
+    _buildKeybindingsPage(page, settings, prefsWindow) {
         // -- GNOME Integration (master override toggle) --
         const integrationGroup = new Adw.PreferencesGroup({
             title: _('GNOME Integration'),
@@ -487,7 +488,7 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
 
         const overrideRow = new Adw.SwitchRow({
             title: _('Override Conflicting GNOME Shortcuts'),
-            subtitle: _('Required for default HyperGnome bindings to work. When off, conflicting shortcuts (Super+H, Super+1..9, Super+Arrows, etc.) keep their GNOME meaning; you may need to rebind HyperGnome\'s shortcuts manually.'),
+            subtitle: _('Required for default HyperGnome bindings to work. When off, conflicting shortcuts (Super+H, Super+1..9, Super+Arrows, etc.) keep their GNOME meaning; rebind HyperGnome shortcuts below if needed.'),
         });
         integrationGroup.add(overrideRow);
         settings.bind('override-gnome-shortcuts', overrideRow, 'active',
@@ -638,6 +639,14 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
                 ],
             },
             {
+                title: _('Master Layout'),
+                bindings: [
+                    {key: 'tile-swap-master', label: _('Swap with Master')},
+                    {key: 'tile-focus-master', label: _('Focus Master')},
+                    {key: 'tile-cycle-orientation', label: _('Cycle Master Orientation')},
+                ],
+            },
+            {
                 title: _('Workspaces'),
                 bindings: [
                     {key: 'tile-workspace-1', label: _('Switch to Workspace 1')},
@@ -708,60 +717,429 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
             overrideGroup.add(row);
         }
 
-        // -- Dynamic conflicts --
-        const dynamicConflicts = this._detectDynamicConflicts(
-            settings, STATIC_OVERRIDES);
-        if (dynamicConflicts.length > 0) {
-            const conflictGroup = new Adw.PreferencesGroup({
-                title: _('Additional Conflicts Detected'),
-                description: _('These GNOME shortcuts use the same keys as HyperGnome bindings. HyperGnome takes priority while the extension is active.'),
-            });
-            page.add(conflictGroup);
+        // -- Dynamic conflicts (refreshed when HyperGnome shortcuts change) --
+        const conflictGroup = new Adw.PreferencesGroup({
+            title: _('Additional Conflicts Detected'),
+            description: _('These GNOME shortcuts use the same keys as HyperGnome bindings. HyperGnome takes priority while the extension is active.'),
+        });
+        page.add(conflictGroup);
+        const conflictRows = [];
+        this._refreshDynamicConflictsGroup(
+            conflictGroup, conflictRows, settings, STATIC_OVERRIDES);
 
-            for (const conflict of dynamicConflicts) {
-                const row = new Adw.ActionRow({
-                    title: `${this._humanizeBindingName(conflict.gnomeName)}`,
-                    subtitle: `Conflicts with ${conflict.ourLabel}`,
-                    icon_name: 'dialog-warning-symbolic',
-                });
-
-                const label = new Gtk.ShortcutLabel({
-                    accelerator: conflict.accelerator,
-                    valign: Gtk.Align.CENTER,
-                });
-                row.add_suffix(label);
-                conflictGroup.add(row);
-            }
-        }
+        const onBindingChanged = () => {
+            this._refreshDynamicConflictsGroup(
+                conflictGroup, conflictRows, settings, STATIC_OVERRIDES);
+        };
 
         // -- HyperGnome Keybindings --
-        for (const group of BINDING_GROUPS) {
-            const prefsGroup = new Adw.PreferencesGroup({
-                title: group.title,
-            });
+        for (const [groupIndex, group] of BINDING_GROUPS.entries()) {
+            const groupProps = {title: group.title};
+            if (groupIndex === 0) {
+                groupProps.description = _(
+                    'Select a row to add, remove, or reset shortcuts. Changes apply immediately in GNOME Shell.');
+            }
+            const prefsGroup = new Adw.PreferencesGroup(groupProps);
             page.add(prefsGroup);
 
             for (const binding of group.bindings) {
-                const accels = settings.get_strv(binding.key);
-                const row = new Adw.ActionRow({
-                    title: binding.label,
-                });
-
-                const box = new Gtk.Box({
-                    spacing: 4,
-                    valign: Gtk.Align.CENTER,
-                });
-                for (const accel of accels) {
-                    if (accel) {
-                        box.append(new Gtk.ShortcutLabel({
-                            accelerator: accel,
-                        }));
-                    }
-                }
-                row.add_suffix(box);
-                prefsGroup.add(row);
+                this._addEditableKeybindingRow(
+                    prefsGroup,
+                    settings,
+                    prefsWindow,
+                    binding,
+                    onBindingChanged);
             }
         }
+    }
+
+    _populateAcceleratorBox(box, accels) {
+        let child = box.get_first_child();
+        while (child) {
+            const next = child.get_next_sibling();
+            box.remove(child);
+            child = next;
+        }
+
+        const nonEmpty = accels.filter(a => a && a !== '');
+        if (nonEmpty.length === 0) {
+            box.append(new Gtk.Label({
+                label: _('Disabled'),
+                css_classes: ['dim-label'],
+            }));
+            return;
+        }
+
+        for (const accel of nonEmpty)
+            box.append(new Gtk.ShortcutLabel({accelerator: accel}));
+    }
+
+    _trackSettingsHandler(prefsWindow, settings, handlerId) {
+        if (!prefsWindow._hypergnomeSettingsHandlers) {
+            prefsWindow._hypergnomeSettingsHandlers = [];
+            prefsWindow.connect('destroy', () => {
+                for (const {settings: s, id} of prefsWindow._hypergnomeSettingsHandlers) {
+                    try {
+                        s.disconnect(id);
+                    } catch (_e) {
+                        // Already disconnected
+                    }
+                }
+                prefsWindow._hypergnomeSettingsHandlers = null;
+            });
+        }
+        prefsWindow._hypergnomeSettingsHandlers.push({settings, id: handlerId});
+    }
+
+    _getKeybindingDescription(settings, key) {
+        try {
+            const schemaKey = settings.get_settings_schema()?.get_key(key);
+            if (!schemaKey)
+                return '';
+            return schemaKey.get_description() || schemaKey.get_summary() || '';
+        } catch (_e) {
+            return '';
+        }
+    }
+
+    _addEditableKeybindingRow(group, settings, prefsWindow, binding, onChanged) {
+        const accelBox = new Gtk.Box({
+            spacing: 4,
+            valign: Gtk.Align.CENTER,
+        });
+
+        const description = this._getKeybindingDescription(settings, binding.key);
+        const rowProps = {
+            title: binding.label,
+            activatable: true,
+        };
+        if (description)
+            rowProps.subtitle = description;
+        const row = new Adw.ActionRow(rowProps);
+        row.add_suffix(accelBox);
+        group.add(row);
+
+        const refreshSuffix = () => {
+            this._populateAcceleratorBox(
+                accelBox, settings.get_strv(binding.key));
+        };
+        refreshSuffix();
+
+        const changedId = settings.connect(
+            `changed::${binding.key}`, () => {
+                refreshSuffix();
+                onChanged?.();
+            });
+        this._trackSettingsHandler(prefsWindow, settings, changedId);
+
+        row.connect('activated', () => {
+            this._openKeybindingEditorDialog(
+                prefsWindow,
+                settings,
+                binding.key,
+                binding.label);
+        });
+    }
+
+    _setBindingAccelerators(settings, bindingKey, accels) {
+        settings.set_strv(
+            bindingKey,
+            accels.filter(a => a && a !== ''));
+    }
+
+    _keyEventToAccelerator(keyval, keycode, state) {
+        if (this._isModifierKey(keyval))
+            return null;
+
+        const key = Gdk.keyval_to_lower(keyval);
+        const modifiers = state & Gtk.accelerator_get_default_mod_mask();
+
+        if (Gtk.accelerator_valid(key, modifiers))
+            return Gtk.accelerator_name(key, modifiers);
+
+        try {
+            const fallback = Gtk.accelerator_name_with_keycode(
+                null, keyval, keycode, modifiers);
+            if (fallback && fallback.length > 0)
+                return fallback;
+        } catch (_e) {
+            // Not available on this GTK version
+        }
+
+        return null;
+    }
+
+    _openKeybindingEditorDialog(prefsWindow, settings, bindingKey, title) {
+        if (prefsWindow._hypergnomeActiveKeyDialog) {
+            const existing = prefsWindow._hypergnomeActiveKeyDialog;
+            if (typeof existing.close === 'function')
+                existing.close();
+            else
+                existing.destroy();
+            prefsWindow._hypergnomeActiveKeyDialog = null;
+        }
+
+        const listBox = new Gtk.ListBox({
+            css_classes: ['boxed-list'],
+            selection_mode: Gtk.SelectionMode.NONE,
+        });
+
+        const hintLabel = new Gtk.Label({
+            label: _(
+                'Press a key combination to add a shortcut. Backspace clears all. Escape closes.'),
+            wrap: true,
+            xalign: 0,
+        });
+
+        const captureStatus = new Gtk.Label({
+            label: _('Listening for shortcut…'),
+            css_classes: ['dim-label'],
+            wrap: true,
+            xalign: 0.5,
+        });
+
+        const captureArea = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 8,
+            margin_top: 8,
+            margin_bottom: 8,
+            margin_start: 8,
+            margin_end: 8,
+        });
+        captureArea.append(hintLabel);
+        captureArea.append(captureStatus);
+
+        const captureFrame = new Gtk.Frame();
+        captureFrame.set_child(captureArea);
+
+        const refreshList = () => {
+            let child = listBox.get_first_child();
+            while (child) {
+                const next = child.get_next_sibling();
+                listBox.remove(child);
+                child = next;
+            }
+
+            const accels = settings.get_strv(bindingKey).filter(a => a && a !== '');
+            if (accels.length === 0) {
+                const emptyRow = new Adw.ActionRow({
+                    title: _('No shortcuts assigned'),
+                });
+                listBox.append(new Gtk.ListBoxRow({child: emptyRow}));
+                return;
+            }
+
+            for (const accel of accels) {
+                const removeButton = new Gtk.Button({
+                    icon_name: 'user-trash-symbolic',
+                    valign: Gtk.Align.CENTER,
+                    css_classes: ['flat'],
+                    tooltip_text: _('Remove shortcut'),
+                });
+                removeButton.connect('clicked', () => {
+                    const current = settings.get_strv(bindingKey)
+                        .filter(a => a && a !== '');
+                    this._setBindingAccelerators(
+                        settings, bindingKey, current.filter(a => a !== accel));
+                    refreshList();
+                });
+
+                const rowBox = new Gtk.Box({
+                    spacing: 12,
+                    margin_top: 8,
+                    margin_bottom: 8,
+                    margin_start: 12,
+                    margin_end: 12,
+                });
+                rowBox.append(new Gtk.ShortcutLabel({
+                    accelerator: accel,
+                    halign: Gtk.Align.START,
+                    hexpand: true,
+                }));
+                rowBox.append(removeButton);
+                listBox.append(new Gtk.ListBoxRow({child: rowBox}));
+            }
+        };
+
+        const resetButton = new Gtk.Button({label: _('Reset to Default')});
+        resetButton.connect('clicked', () => {
+            settings.reset(bindingKey);
+            refreshList();
+        });
+
+        const doneButton = new Gtk.Button({
+            label: _('Done'),
+            css_classes: ['suggested-action'],
+        });
+
+        const buttonRow = new Gtk.Box({
+            spacing: 12,
+            margin_top: 12,
+            halign: Gtk.Align.END,
+        });
+        buttonRow.append(resetButton);
+        buttonRow.append(doneButton);
+
+        const content = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 12,
+            margin_top: 12,
+            margin_bottom: 24,
+            margin_start: 12,
+            margin_end: 12,
+        });
+        content.append(captureFrame);
+        content.append(listBox);
+        content.append(buttonRow);
+
+        content.set_focusable(true);
+        content.set_can_focus(true);
+        content.set_focus_on_click(true);
+        captureArea.set_focusable(true);
+        captureArea.set_can_focus(true);
+        captureArea.set_focus_on_click(true);
+
+        let dialog = null;
+        const closeDialog = () => {
+            if (!dialog)
+                return;
+            if (typeof dialog.close === 'function')
+                dialog.close();
+            else
+                dialog.destroy();
+            if (prefsWindow._hypergnomeActiveKeyDialog === dialog)
+                prefsWindow._hypergnomeActiveKeyDialog = null;
+        };
+
+        const handleKeyCapture = (_ctrl, keyval, keycode, state) => {
+            if (keyval === Gdk.KEY_Escape) {
+                closeDialog();
+                return Gdk.EVENT_STOP;
+            }
+
+            if (keyval === Gdk.KEY_BackSpace || keyval === Gdk.KEY_Delete) {
+                if ((state & Gtk.accelerator_get_default_mod_mask()) === 0) {
+                    this._setBindingAccelerators(settings, bindingKey, []);
+                    captureStatus.label = _('All shortcuts cleared');
+                    refreshList();
+                    return Gdk.EVENT_STOP;
+                }
+            }
+
+            const accel = this._keyEventToAccelerator(keyval, keycode, state);
+            if (!accel) {
+                if (this._isModifierKey(keyval))
+                    captureStatus.label = _('Press another key with the modifier…');
+                return Gdk.EVENT_STOP;
+            }
+
+            const current = settings.get_strv(bindingKey).filter(a => a && a !== '');
+            const exists = current.some(
+                a => a.toLowerCase() === accel.toLowerCase());
+            if (!exists) {
+                this._setBindingAccelerators(
+                    settings, bindingKey, [...current, accel]);
+                captureStatus.label = _('Added: %s').replace('%s', accel);
+            } else {
+                captureStatus.label = _('Already assigned: %s').replace('%s', accel);
+            }
+            refreshList();
+            return Gdk.EVENT_STOP;
+        };
+
+        const keyController = new Gtk.EventControllerKey({
+            propagation_phase: Gtk.PropagationPhase.CAPTURE,
+        });
+        keyController.connect('key-pressed', handleKeyCapture);
+
+        doneButton.connect('clicked', closeDialog);
+
+        const attachKeyCapture = (widget) => {
+            widget.add_controller(keyController);
+        };
+
+        if (Adw.Dialog) {
+            dialog = new Adw.Dialog({
+                title,
+                content_width: 440,
+                content_height: 420,
+                child: content,
+            });
+            dialog.connect('closed', () => {
+                prefsWindow._hypergnomeActiveKeyDialog = null;
+            });
+            attachKeyCapture(dialog);
+            prefsWindow._hypergnomeActiveKeyDialog = dialog;
+            refreshList();
+            dialog.present(prefsWindow);
+            if (typeof dialog.set_focus === 'function')
+                dialog.set_focus(content);
+        } else {
+            dialog = new Adw.Window({
+                title,
+                transient_for: prefsWindow,
+                modal: true,
+                default_width: 440,
+                default_height: 420,
+                hide_on_close: true,
+            });
+            dialog.connect('close-request', () => {
+                if (prefsWindow._hypergnomeActiveKeyDialog === dialog)
+                    prefsWindow._hypergnomeActiveKeyDialog = null;
+            });
+            dialog.set_content(content);
+            attachKeyCapture(dialog);
+            prefsWindow._hypergnomeActiveKeyDialog = dialog;
+            refreshList();
+            dialog.present();
+        }
+
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            content.grab_focus();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _refreshDynamicConflictsGroup(group, conflictRows, settings, staticOverrides) {
+        for (const row of conflictRows) {
+            try {
+                group.remove(row);
+            } catch (_e) {
+                // Row already removed
+            }
+        }
+        conflictRows.length = 0;
+
+        const dynamicConflicts = this._detectDynamicConflicts(
+            settings, staticOverrides);
+        group.visible = dynamicConflicts.length > 0;
+
+        for (const conflict of dynamicConflicts) {
+            const row = new Adw.ActionRow({
+                title: `${this._humanizeBindingName(conflict.gnomeName)}`,
+                subtitle: `Conflicts with ${conflict.ourLabel}`,
+                icon_name: 'dialog-warning-symbolic',
+            });
+
+            const label = new Gtk.ShortcutLabel({
+                accelerator: conflict.accelerator,
+                valign: Gtk.Align.CENTER,
+            });
+            row.add_suffix(label);
+            group.add(row);
+            conflictRows.push(row);
+        }
+    }
+
+    _isModifierKey(keyval) {
+        return [
+            Gdk.KEY_Shift_L, Gdk.KEY_Shift_R,
+            Gdk.KEY_Control_L, Gdk.KEY_Control_R,
+            Gdk.KEY_Alt_L, Gdk.KEY_Alt_R,
+            Gdk.KEY_Super_L, Gdk.KEY_Super_R,
+            Gdk.KEY_Meta_L, Gdk.KEY_Meta_R,
+            Gdk.KEY_Caps_Lock, Gdk.KEY_Num_Lock,
+        ].includes(keyval);
     }
 
     // =========================================================================
