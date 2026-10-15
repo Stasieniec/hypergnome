@@ -41,6 +41,7 @@ I also tried switching fully to Hyprland. The tiling model was closer to what I 
 | Focus | `Super+H/J/K/L` | `Super+Arrows` |
 | Move window | `Super+Shift+H/J/K/L` | `Super+Shift+Arrows` |
 | Resize window | `Super+Ctrl+H/J/K/L` | `Super+Ctrl+Arrows` |
+| Toggle tiling | `Super+T` | |
 | Toggle float | `Super+V` | |
 | Toggle split direction | `Super+P` | |
 | Equalize splits | `Super+E` | |

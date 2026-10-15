@@ -632,6 +632,7 @@ export default class HyperGnomePreferences extends ExtensionPreferences {
             {
                 title: _('Actions'),
                 bindings: [
+                    {key: 'tile-toggle-tiling', label: _('Toggle Tiling')},
                     {key: 'tile-toggle-float', label: _('Toggle Float')},
                     {key: 'tile-close-window', label: _('Close Window')},
                     {key: 'tile-toggle-split', label: _('Toggle Split')},

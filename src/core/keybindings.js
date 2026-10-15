@@ -89,6 +89,12 @@ export class KeybindingManager {
         this._addBinding('tile-move-right', () => this._tilingManager.moveDirection('right'));
 
         // -- Custom keybindings (actions) --
+        this._addBinding(
+            'tile-toggle-tiling',
+            () => this._tilingManager.toggleTilingEnabled(),
+            Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+            false,
+        );
         this._addBinding('tile-toggle-float', () => this._tilingManager.toggleFloat());
         this._addBinding('tile-close-window', () => this._tilingManager.closeWindow());
         this._addBinding('tile-toggle-split', () => this._tilingManager.toggleSplit());
@@ -270,20 +276,15 @@ export class KeybindingManager {
      * @param {string} name - GSettings key name
      * @param {Function} handler
      */
-    _addBinding(name, handler) {
-        Main.wm.addKeybinding(
+    _addBinding(name, handler, flags = Meta.KeyBindingFlags.NONE, armPulse = true) {
+        const action = Main.wm.addKeybinding(
             name,
             this._settings,
-            Meta.KeyBindingFlags.NONE,
+            flags,
             Shell.ActionMode.NORMAL,
             () => {
-                // Mark the upcoming focus change as keybind-driven so the
-                // active-border pulses.  Mutter consumes the KEY_PRESS
-                // event before it can be observed elsewhere, and clicks
-                // bypass Clutter entirely (Wayland routes them to the
-                // client), so the handler itself is the only reliable
-                // place to flag "this came from a keybind".
-                this._borderManager?.armKeybindPulse();
+                if (armPulse)
+                    this._borderManager?.armKeybindPulse();
                 try {
                     handler();
                 } catch (e) {
@@ -291,6 +292,20 @@ export class KeybindingManager {
                 }
             },
         );
+        if (action === Meta.KeyBindingAction.NONE) {
+            let accels = [];
+            try {
+                accels = this._settings.get_strv(name);
+            } catch (e) {
+                logError(e,
+                    `HyperGnome: "${name}" is missing from the loaded schema — restart GNOME Shell after updating the extension, then run: make schemas`);
+            }
+            logError(
+                new Error(
+                    `add_keybinding failed for "${name}"` +
+                    ` (accelerators: ${accels.length ? accels.join(', ') : 'none'})`),
+                'HyperGnome keybinding registration');
+        }
         this._customBindings.push(name);
     }
 

@@ -17,6 +17,8 @@ export default class HyperGnomeExtension extends Extension {
         this._settings = this.getSettings();
         this._signals = new SignalManager();
 
+        this._primeKeybindingDefaults();
+
         this._createIndicator();
         this._connectSettings();
 
@@ -126,6 +128,23 @@ export default class HyperGnomeExtension extends Extension {
     }
 
     // -- Settings --
+
+    /**
+     * Ensure new/required keybinding keys have schema defaults (e.g. after upgrades).
+     */
+    _primeKeybindingDefaults() {
+        const keys = ['tile-toggle-tiling'];
+        for (const key of keys) {
+            try {
+                const accels = this._settings.get_strv(key);
+                if (accels.length === 0)
+                    this._settings.reset(key);
+            } catch (e) {
+                logError(e,
+                    `HyperGnome: setting "${key}" is unavailable — run "make schemas" and restart GNOME Shell`);
+            }
+        }
+    }
 
     _connectSettings() {
         this._signals.connect(this._settings, 'changed::show-indicator', () => {

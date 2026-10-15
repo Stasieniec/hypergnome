@@ -178,6 +178,16 @@ export class TilingManager {
     }
 
     // =========================================================================
+    /**
+     * Flip the global tiling-enabled setting (prefs switch, indicator, keybind).
+     */
+    toggleTilingEnabled() {
+        if (!this._settings)
+            return;
+        const enabled = this._settings.get_boolean('tiling-enabled');
+        this._settings.set_boolean('tiling-enabled', !enabled);
+    }
+
     // Public action methods (called by keybindings)
     // =========================================================================
 

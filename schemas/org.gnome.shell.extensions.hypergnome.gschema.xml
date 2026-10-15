@@ -206,6 +206,12 @@
     </key>
 
     <!-- Keybindings: Actions -->
+    <key name="tile-toggle-tiling" type="as">
+      <default><![CDATA[['<Super>t']]]></default>
+      <summary>Toggle tiling</summary>
+      <description>Enable or disable automatic tiling (same as Enable Tiling in General preferences)</description>
+    </key>
+
     <key name="tile-toggle-float" type="as">
       <default><![CDATA[['<Super>v']]]></default>
       <summary>Toggle floating</summary>
